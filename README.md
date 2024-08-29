@@ -4,7 +4,7 @@ The World of Warcraft 3.3.5a client is old and it's no longer supported, this pr
 The original project has a license that I did not understand very well. but I believe I have to tell which changes I did which we're basically:
 
 1. Ported this AddOn to work on a World of Warcraft Lua API older than it currently supports (WoW 3.3.5a 12340).
-2. Added different mechanisms to lookup for quest IDs, which is required by Quest Toasts but this feature has been disabled, at least for now.
+2. Added different mechanisms to lookup for quest IDs, which is required by Quest Toasts but this feature has been disabled.
 3. Implemented workarounds for missing WoW API functions needed for this addon to work.
 
 The original project is here: https://github.com/seblindfors/Immersion/
