@@ -424,6 +424,10 @@ function API:ShouldCloseOnInteraction(type)
 	return CloseOnInteractionTypes[type];
 end
 
+function API:GetQuestID()
+	return 0; -- not yet implemented.
+end
+
 -- Mixin Implementation
 
 function API.Mixin(object, ...)

@@ -65,7 +65,7 @@ function Frame:IsQuestAutoAccepted(questStartItemID)
 	-- and different from eachother depending on the source of the quest. 
 	-- Handling here is prone to cause bugs/weird behaviour, update with caution.
 
-	local questID = ImmersionAPI:GetQuestID()
+	--local questID = ImmersionAPI:GetQuestID()
 	local isFromAdventureMap = API:QuestIsFromAdventureMap()
 	local isFromAreaTrigger = API:QuestGetAutoAccept() and API:QuestIsFromAreaTrigger()
 	local isFromItem = (questStartItemID ~= nil and questStartItemID ~= 0)
@@ -78,9 +78,9 @@ function Frame:IsQuestAutoAccepted(questStartItemID)
 	-- an item pickup by loot caused this quest to show up, don't intrude on the user.
 	if isFromItem then
 		-- add a new quest tracker popup and close the quest dialog
-		if AddAutoQuestPopUp(questID, 'OFFER') then
-			PlayAutoAcceptQuestSound()
-		end
+		--if AddAutoQuestPopUp(questID, 'OFFER') then
+		--	PlayAutoAcceptQuestSound()
+		--end
 		API:CloseQuest()
 		return true
 	end
@@ -89,9 +89,9 @@ function Frame:IsQuestAutoAccepted(questStartItemID)
 	-- let's not intrude on the user; just add a tracker popup.
 	if isFromAreaTrigger then
 		-- add a new quest tracker popup and close the quest dialog
-		if AddAutoQuestPopUp(questID, 'OFFER') then
-			PlayAutoAcceptQuestSound()
-		end
+		--if AddAutoQuestPopUp(questID, 'OFFER') then
+		--	PlayAutoAcceptQuestSound()
+		--end
 		API:CloseQuest()
 		return true
 	end
@@ -170,11 +170,13 @@ function Frame:SetBackground(kit)
 end
 
 function Frame:UpdateBackground()
+	--[==[
 	local theme = API:GetQuestDetailsTheme(ImmersionAPI:GetQuestID())
 	local kit = theme and theme.background and theme.background:gsub('QuestBG%-', '')
 	if kit then
 		self:SetBackground(kit)
 	end
+	--]==]
 end
 
 function Frame:ResetElements(event)

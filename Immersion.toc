@@ -1,7 +1,7 @@
 ## Interface: 30300
-## Title: Immersion
+## Title: ImmersionLK
 ## Notes: Immersive replacement for quest & gossip
-## Version: 1.4.16
+## Version: 1.0.0
 
 ## Author: Sebastian Lindfors
 ## Ported-by: leoaviana
@@ -28,7 +28,6 @@ Interface.lua
 # Extra stuff & config
 Utils.lua
 Config.lua
-QuestList.lua
 
 # Secure UI
 Secure\Utils.lua 

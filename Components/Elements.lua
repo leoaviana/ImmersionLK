@@ -274,6 +274,7 @@ end
 function Elements:ShowSeal()
 	local frame = self.Content.SealFrame
 	if ACTIVE_TEMPLATE and ACTIVE_TEMPLATE.canHaveSealMaterial then
+		--[==[
 		local sealInfo = SEAL_QUESTS[ImmersionAPI:GetQuestID()]
 		if sealInfo then
 			frame.Text:SetText(sealInfo.text)
@@ -282,6 +283,7 @@ function Elements:ShowSeal()
 			frame:Show()
 			return frame
 		end
+		--]==]
 	end
 	return frame:Hide()
 end
