@@ -27,27 +27,23 @@ local function map(lambda, step, ...)
 end
 
 function API:MapGossipAvailableQuests(i, idx, ...)
-	local title, level, trivial, frequency, repeatable, legendary, id = select(i, ...)
+	local title, level, trivial, frequency, repeatable = select(i, ...)
 	return {
 		title       = title,
 		questLevel  = level,
 		isTrivial   = trivial,
 		frequency   = frequency,
 		repeatable  = repeatable,
-		isLegendary = legendary,
-		questID     = id or idx,
 	}
 end
 
 function API:MapGossipActiveQuests(i, idx, ...)
-	local title, level, trivial, complete, legendary, id = select(i, ...)
+	local title, level, trivial, complete = select(i, ...)
 	return {
 		title       = title,
 		questLevel  = level,
 		isTrivial   = trivial,
 		isComplete  = complete,
-		isLegendary = legendary,
-		questID     = id or idx,
 	}
 end
 

@@ -197,7 +197,7 @@ function Titles:UpdateAvailableQuests(data)
 		local typeOfQ = (quest.isTrivial and TRIVIAL_QUEST_DISPLAY)
 		button:SetFormattedText(typeOfQ or NORMAL_QUEST_DISPLAY, quest.title)
 		----------------------------------
-		local icon, useAtlas = API:GetQuestIconOffer(quest)
+		local icon, useAtlas = API:GetQuestIconOffer(quest) 
 		button:SetIcon(icon, typeOfQ and 0.5, useAtlas)
 		----------------------------------
 		button:SetPriority(P_AVAILABLE_QUEST)
@@ -303,8 +303,7 @@ function Titles:UpdateAvailableGreetingQuests(numAvailableQuests)
 		button:SetFormattedText(qType or NORMAL_QUEST_DISPLAY, title)
 		----------------------------------
 		local icon = ( isLegendary and 'AvailableLegendaryQuestIcon' ) or
-					( frequency == LE_QUEST_FREQUENCY_DAILY and 'DailyQuestIcon') or
-					( frequency == LE_QUEST_FREQUENCY_WEEKLY and 'DailyQuestIcon' ) or
+					( frequency and 'DailyQuestIcon') or 
 					( isRepeatable and 'DailyActiveQuestIcon' ) or
 					( 'AvailableQuestIcon' )
 		button:SetGossipQuestIcon(icon, qType and 0.5)

@@ -83,7 +83,7 @@ L.defaults = {
 
 	inspect = 'SHIFT',
 	accept = 'SPACE',
-	reset = 'BACKSPACE',
+	reset = 'R',
 }---------------------------------
 
 local stratas = {

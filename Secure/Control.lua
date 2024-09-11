@@ -188,7 +188,7 @@ Control:Execute([[
 -- If the no bindings are currently being used by the key, GetBindingByKey will return nil, so we will just use
 -- SetBinding to set a binding to this key, because we are not able to use an unbinded key here.
 local LastBindings = {}
-local InputHanders = {}
+local InputHandlers = {}
 
 local cpDatabase, UIKeys
 
@@ -210,7 +210,7 @@ if(ConsolePort) then
 	}
 end
 
-local function UpdateBindingsHelper(binding, uikey, btname)
+local function UpdateBindingsHelper(binding, uikey, btname, keyname)  
 	-- keys [string binding] = [integer key]
 	Control:Execute(([[ keys.%s = '%s' ]]):format(binding, uikey))
 
@@ -228,12 +228,18 @@ local function UpdateBindingsHelper(binding, uikey, btname)
 
 	if(not inputHandler) then
 		inputHandler = CreateFrame('Button', '$parent_'..buttonName, Control, 'SecureActionButtonTemplate')
-		inputHandler.binding = binding
 	end
+	inputHandler.binding = binding
+	
 	-- Register for any input, since these will simulate integer keys.
 	inputHandler:RegisterForClicks('AnyUp', 'AnyDown')
 	-- Assume macro initially; input handler may change between macro/click.
 	inputHandler:SetAttribute('type', 'macro')
+ 
+	if(keyname) then
+		inputHandler:SetAttribute('keyname', keyname) 
+	end
+
 	-- Reference the handler so it can be bound securely.
 	Control:SetFrameRef(binding, inputHandler)
 	-- Set up click wrappers for the input handlers.
@@ -273,6 +279,14 @@ function Control:UpdateBindings()
 			SetBinding(L.cfg.goodbye, "ASSISTTARGET")
 			table.insert(LastBindings, L.cfg.goodbye)
 		end
+		if (L.cfg.enablenumbers) then 
+			for i = 1, 9 do
+				if(not GetBindingByKey(tostring(i))) then
+					SetBinding(tostring(i), "ACTIONBUTTON"..i) 			
+					table.insert(LastBindings, tostring(i))
+				end
+			end
+		end
 	end
 
 	if not InputHandlers then
@@ -304,8 +318,13 @@ function Control:UpdateBindings()
 				else
 					keyname = key2
 				end
-
-				UpdateBindingsHelper(binding, i, keyname == L.cfg.accept and 'AcceptButton' or (keyname == L.cfg.reset and 'ResetButton' or (keyname == L.cfg.goodbye and 'GoodbyeButton' or 'EscapeButton')))
+				
+				UpdateBindingsHelper(binding, i, keyname == L.cfg.accept and 'AcceptButton' or (keyname == L.cfg.reset and 'ResetButton' or (keyname == L.cfg.goodbye and 'GoodbyeButton' or 'EscapeButton')), keyname)
+			end
+			if((L.cfg.enablenumbers) and (tonumber(key1) and tonumber(key1) >= 1 and tonumber(key1) <= 9 or false)) then
+				UpdateBindingsHelper(command, i, "number_"..key1, "number_"..key1)		
+			elseif((L.cfg.enablenumbers) and (tonumber(key2) and tonumber(key2) >= 1 and tonumber(key2) <= 9 or false)) then
+				UpdateBindingsHelper(command, i, "number_"..key2, "number_"..key2)
 			end
 		end
 	end
