@@ -1,5 +1,5 @@
-local _, L = ...
-local Inspector = ImmersionFrame.Inspector
+local API, _, L = ImmersionAPI, ...
+local Inspector, CreateFramePool = ImmersionFrame.Inspector, API.CreateFramePool
 
 -- Synthetic OnLoad
 do local self = Inspector
@@ -13,25 +13,19 @@ do local self = Inspector
 	self:EnableMouse(true)
 
 	-- set parent/strata on load main frame keeps table key, strata correctly draws over everything else.
-	self:SetParent(UIParent)
+	if L('hideui') then
+		self:SetParent(UIParent)
+	end
 	self:SetFrameStrata('FULLSCREEN_DIALOG')
-	L.ToggleIgnoreFrame(self, true)
 
 	self.Items = {}
 	self:SetScale(1.1)
 
-	--local r, g, b = GetClassColor(select(2, UnitClass('player')))
-	--local minColor = CreateColor(0, 0, 0, 0.75)
-	--local maxColor = CreateColor(r / 5, g / 5, b / 5, 0.75)
+	local r, g, b = L.GetClassColor(select(2, UnitClass('player')))
+	--self.Background:SetColorTexture(1, 1, 1)
+	self.Background:SetGradientAlpha('VERTICAL', 0, 0, 0, 0.75, r / 5, g / 5, b / 5, 0.75)
 
-	local cc = RAID_CLASS_COLORS[select(2, UnitClass('player'))]
-
-	self.Background:SetTexture(cc.r, cc.g, cc.b)
-	self.Background:SetGradientAlpha("VERTICAL", 0, 0, 0, 0.75, cc.r / 5, cc.g / 5, cc.b / 5, 0.75);
-	
-	--L.SetGradient(self.Background, 'VERTICAL', minColor, maxColor)
-
-	self.tooltipFramePool = ImmersionAPI.CreateFramePool('GameTooltip', self, 'ImmersionItemTooltipTemplate', function(self, obj) obj:Hide() end)
+	self.tooltipFramePool = CreateFramePool('GameTooltip', self, 'ImmersionItemTooltipTemplate', function(self, obj) obj:Hide() end)
 	self.tooltipFramePool.creationFunc = function(framePool)
 		local index = #framePool.inactiveObjects + framePool.numActiveObjects + 1
 		local tooltip = L.Create({
@@ -41,19 +35,14 @@ do local self = Inspector
 			parent  = framePool.parent,
 			inherit = framePool.frameTemplate
 		})
-		L.SetBackdrop(tooltip.Hilite, L.Backdrops.TOOLTIP_HILITE)
+		L.SetBackdrop(tooltip.Hilite, L.Backdrops.GOSSIP_HILITE)
 		return tooltip
 	end
 end
 
 function Inspector:OnShow()
-	if(not self.parent) then
-		self.parent = L.frame -- workaround issue
-	end
-
 	self.parent.TalkBox:Dim();
 	self.tooltipFramePool:ReleaseAll();
-	L.UIFrameFadeIn(self, 0.25, 0, 1)
 end
 
 function Inspector:OnHide()
@@ -71,14 +60,6 @@ function Inspector:OnHide()
 		column.lastItem = nil
 		column:SetSize(1, 1)
 		column:Hide()
-	end
-end
-
-function Inspector:OnUpdate(elapsed)
-	self.timer = (self.timer or 0) + elapsed
-	if self.timer > 0.1 then 
-		self:AdjustToChildren()
-		self.timer = 0
 	end
 end
 

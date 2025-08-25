@@ -2,7 +2,7 @@ local API, Titles, _, L = ImmersionAPI, {}, ...
 L.TitlesMixin = Titles
 
 -- Upvalue for update scripts
-local GetScaledCursorPosition, UIParent = CP_GetScaledCursorPosition, UIParent
+local GetScaledCursorPosition, UIParent = GetScaledCursorPosition, UIParent
 
 local NORMAL_QUEST_DISPLAY = NORMAL_QUEST_DISPLAY:gsub(0, 'f')
 local TRIVIAL_QUEST_DISPLAY = TRIVIAL_QUEST_DISPLAY:gsub(0, 'f')
@@ -46,7 +46,7 @@ end
 function Titles:OnUpdateOffset()
 	local anchor, relativeRegion, relativeKey, x, y, offset
 	if not self.ignoreAtCursor and L('gossipatcursor') then
-		local posX, posY = GetScaledCursorPosition()
+		local posX, posY = API:GetScaledCursorPosition()
 		local uiX, uiY = UIParent:GetCenter()
 		x, y = (posX - uiX), (posY - uiY)
 		anchor, relativeRegion, relativeKey, offset = 
@@ -197,7 +197,7 @@ function Titles:UpdateAvailableQuests(data)
 		local typeOfQ = (quest.isTrivial and TRIVIAL_QUEST_DISPLAY)
 		button:SetFormattedText(typeOfQ or NORMAL_QUEST_DISPLAY, quest.title)
 		----------------------------------
-		local icon, useAtlas = API:GetQuestIconOffer(quest) 
+		local icon, useAtlas = API:GetQuestIconOffer(quest)
 		button:SetIcon(icon, typeOfQ and 0.5, useAtlas)
 		----------------------------------
 		button:SetPriority(P_AVAILABLE_QUEST)
@@ -234,7 +234,7 @@ function Titles:UpdateGossipOptions(data)
 		local button = self:GetButton(self.idx)
 		----------------------------------
 		button:SetText(option.name)
-		button:SetGossipIcon(option.type or option.icon)
+		button:SetGossipIcon(option.type)
 		button:SetPriority(P_AVAILABLE_GOSSIP)
 		----------------------------------
 		button:SetID(i)
@@ -244,7 +244,10 @@ function Titles:UpdateGossipOptions(data)
 	end
 end
 
-function Titles:UNIT_QUEST_LOG_CHANGED()
+function Titles:UNIT_QUEST_LOG_CHANGED(target, ...)
+	if target ~= 'player' then
+		return
+	end
 	if self:IsVisible() then
 		if ( self.type == 'Gossip' and self.hasActiveQuests ) then
 			self:Hide()
@@ -263,8 +266,8 @@ function Titles:QUEST_GREETING()
 	self.idx = 1
 	self.type = 'Quests'
 	self:Show()
-	self:UpdateActiveGreetingQuests(API:GetNumActiveQuests())
-	self:UpdateAvailableGreetingQuests(API:GetNumAvailableQuests())
+	self:UpdateActiveGreetingQuests(GetNumActiveQuests())
+	self:UpdateAvailableGreetingQuests(GetNumAvailableQuests())
 	for i = self.idx, #self.Buttons do
 		self.Buttons[i]:Hide()
 	end
@@ -280,8 +283,7 @@ function Titles:UpdateActiveGreetingQuests(numActiveQuests)
 		local qType = ( IsActiveQuestTrivial(i) and TRIVIAL_QUEST_DISPLAY )
 		button:SetFormattedText(qType or NORMAL_QUEST_DISPLAY, title)
 		----------------------------------
-		local icon = ( isComplete and API:IsActiveQuestLegendary(i) and 'ActiveLegendaryQuestIcon' ) or
-					( isComplete and 'ActiveQuestIcon') or
+		local icon = ( isComplete and 'ActiveQuestIcon') or
 					( 'InCompleteQuestIcon' )
 		button:SetGossipQuestIcon(icon, qType and 0.75)
 		button:SetPriority(isComplete and P_COMPLETE_QUEST or P_INCOMPLETE_QUEST)
@@ -297,13 +299,12 @@ function Titles:UpdateAvailableGreetingQuests(numAvailableQuests)
 	for i=1, numAvailableQuests do
 		local button = self:GetButton(self.idx)
 		local title = GetAvailableTitle(i)
-		local isTrivial, frequency, isRepeatable, isLegendary = API:GetAvailableQuestInfo(i)
+		local isTrivial, isDaily, isRepeatable = API:GetAvailableQuestInfo(i)
 		----------------------------------
 		local qType = ( isTrivial and TRIVIAL_QUEST_DISPLAY )
 		button:SetFormattedText(qType or NORMAL_QUEST_DISPLAY, title)
 		----------------------------------
-		local icon = ( isLegendary and 'AvailableLegendaryQuestIcon' ) or
-					( frequency and 'DailyQuestIcon') or 
+		local icon = ( isDaily and 'DailyQuestIcon' ) or
 					( isRepeatable and 'DailyActiveQuestIcon' ) or
 					( 'AvailableQuestIcon' )
 		button:SetGossipQuestIcon(icon, qType and 0.5)

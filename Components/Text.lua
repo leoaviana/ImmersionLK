@@ -22,6 +22,7 @@ local Text = L.TextMixin
 ----------------------------------
 function Text:SetText(text)
 	TEXT_TIME_DIVISOR = L('delaydivisor')
+	self.lengthText = 2400
 	self:PreparePlayback()
 	self.storedText = text
 	if text then
@@ -192,10 +193,9 @@ function Text:ApplyFontObjects()
 
 	for i, fontObject in ipairs(self.fontObjectsToTry) do
 		self:SetFontObject(fontObject)
-		--if not self:IsTruncated()
-		--	break
-		--end
-		break;
+		if not self:IsTruncated() then
+			break
+		end
 	end
 end
 

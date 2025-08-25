@@ -6,12 +6,6 @@ local REWARDS_OFFSET = 10 -- vertical distance between sections
 local ITEMS_PER_ROW = 2 -- modulus value for item rows
 local ACTIVE_TEMPLATE
 
-local SEAL_QUESTS = { -- Seal quests
-	[40519] = {text = '|cff04aaff'..'QUEST_KING_VARIAN_WRYNN'..'|r', sealAtlas = 'Quest-Alliance-WaxSeal'},
-	[43926] = {text = '|cff480404'..'QUEST_WARCHIEF_VOLJIN'..'|r', sealAtlas = 'Quest-Horde-WaxSeal'},
-	[46730] = {text = '|cff2f0a48'..'QUEST_KHADGAR'..'|r', sealAtlas = 'Quest-Legionfall-WaxSeal'},
-}
-
 local LOOT_ITEM_TYPES = {
 	[0] = 'item'; -- LOOT_LIST_ITEM
 	[1] = 'currency'; -- LOOT_LIST_CURRENCY
@@ -33,18 +27,6 @@ local function IsValidSpellReward(texture, knownSpell, isBoostSpell, garrFollowe
 	return  texture and not knownSpell and
 			(not isBoostSpell or API:IsCharacterNewlyBoosted()) and
 			(not garrFollowerID or not API:IsFollowerCollected(garrFollowerID))
-end
-
-local function SetItemButtonTexture(button, texture) -- adding a round mask to button texture
-	if ( not button ) then
-		return;
-	end
-	if ( texture ) then
-		_G[button:GetName().."IconTexture"]:Show();
-	else
-		_G[button:GetName().."IconTexture"]:Hide();
-	end
-	SetPortraitToTexture(_G[button:GetName().."IconTexture"], texture);
 end
 
 local function GetItemButton(parentFrame, index, buttonType)
@@ -70,12 +52,12 @@ local function UpdateItemInfo(self, showMissing)
 			local hasMissingAmount = missingAmount and missingAmount > 0
 			displayText = hasMissingAmount and ('%s\n|cff757575%s|r'):format(name, ITEM_MISSING:format(missingAmount))
 		end
-		displayText = displayText or name;
+		displayText = displayText or name
 		-- For the tooltip
 		self.Name:SetText(displayText)
 		self.itemTexture = texture
 		SetItemButtonCount(self, amount)
-		--SetItemButtonQuality(self, quality, GetQuestItemLink(self.type, self:GetID()))
+	--	SetItemButtonQuality(self, quality, GetQuestItemLink(self.type, self:GetID()))
 		SetItemButtonTexture(self, texture)
 		if ( isUsable ) then
 			SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0)
@@ -84,22 +66,9 @@ local function UpdateItemInfo(self, showMissing)
 			SetItemButtonTextureVertexColor(self, 0.9, 0, 0)
 			SetItemButtonNameFrameVertexColor(self, 0.9, 0, 0)
 		end
+		SetPortraitToTexture(self.Icon, texture)
 		self:Show()
 		return true
-	elseif self.objectType == 'currency' then
-		local name, texture, numItems = GetQuestCurrencyInfo(self.type, self:GetID())
-		if (name and texture and numItems) then
-			-- For the tooltip
-			self.Name:SetText(name)
-			self.itemTexture = texture
-			SetItemButtonCount(self, numItems, true)
-			SetItemButtonTexture(self, texture)
-			SetItemButtonTextureVertexColor(self, 1.0, 1.0, 1.0)
-			SetItemButtonNameFrameVertexColor(self, 1.0, 1.0, 1.0)
-			return true
-		else
-			return self:Hide()
-		end
 	end
 end
 
@@ -166,6 +135,7 @@ function Elements:Display(template, material)
 	return height
 end
 
+
 function Elements:SetMaterial(material)
 	local progress = self.Progress
 	local content = self.Content
@@ -203,12 +173,43 @@ end
 
 function Elements:ShowSpecialObjectives()
 	-- Show objective spell
-	--local spellID, spellName, spellTexture = GetCriteriaSpell() -- no criteriaspell on wotlk legacy.
-	local spellID = nil;
+	local questID
+	local numQuestRewards
+	local numQuestChoices
+	
+	do  -- Get data
+		questID = API:GetQuestID()
+		numQuestRewards = API:GetNumQuestRewards()
+		numQuestChoices = API:GetNumQuestChoices()
+	end
+	
+	local questItem, numItems
+	local rewardsCount = 0
+	
+	local spellID, spellName, spellTexture
+	
+	-- Setup choosable rewards
+	if ( numQuestChoices > 0 ) then
+		local index
+		local baseIndex = rewardsCount
+		for i = 1, numQuestChoices do	
+			index = i + baseIndex
+			questItem = GetItemButton(self, index)
+			questItem.type = 'choice'
+			questItem.objectType = 'item'
+			questItem.questID = questID
+			numItems = 1
+			questItem:SetID(i)
+			questItem:Show()
+
+			spellName, spellTexture = GetQuestItemInfo(questItem.type, i) or GetQuestLogChoiceInfo(i)
+			spellID = select(7, GetSpellInfo(spellName))
+		end
+	end
+	
 	local specialFrame = self.Content.SpecialObjectivesFrame
 	local spellObjectiveLabel = specialFrame.SpellObjectiveLearnLabel
 	local spellObjective = specialFrame.SpellObjectiveFrame
-
 
 	local lastFrame = nil
 	local totalHeight = 0
@@ -230,6 +231,8 @@ function Elements:ShowSpecialObjectives()
 
 		spellObjectiveLabel:SetText(LEARN_SPELL_OBJECTIVE)
 		spellObjectiveLabel:SetTextColor(0, 0, 0)
+		
+		SetPortraitToTexture(spellObjective.Icon, spellTexture)
 
 		spellObjectiveLabel:Show()
 		spellObjective:Show()
@@ -271,23 +274,6 @@ function Elements:ShowGroupSize()
 	end
 end
 
-function Elements:ShowSeal()
-	local frame = self.Content.SealFrame
-	if ACTIVE_TEMPLATE and ACTIVE_TEMPLATE.canHaveSealMaterial then
-		--[==[
-		local sealInfo = SEAL_QUESTS[ImmersionAPI:GetQuestID()]
-		if sealInfo then
-			frame.Text:SetText(sealInfo.text)
-			ImmersionAPI.SetAtlas(frame.Texture, sealInfo.sealAtlas) 
-			frame.Texture:SetPoint('TOPLEFT', ACTIVE_TEMPLATE.sealXOffset, ACTIVE_TEMPLATE.sealYOffset)
-			frame:Show()
-			return frame
-		end
-		--]==]
-	end
-	return frame:Hide()
-end
-
 ----------------------------------
 -- Quest reward handling
 ----------------------------------
@@ -296,9 +282,7 @@ function Elements:ShowRewards()
 	local self = self.Content.RewardsFrame -- more convenient this way
 	local rewardButtons = self.Buttons
 	local 	numQuestRewards, numQuestChoices, numQuestCurrencies,
-			money,
-			skillName, skillPoints, skillIcon,
-			xp, artifactXP, artifactCategory, honor,
+			questID, money, xp, honor,
 			playerTitle,
 			numSpellRewards
 			
@@ -307,13 +291,11 @@ function Elements:ShowRewards()
 	local GetSpell = GetRewardSpell
 
 	do  -- Get data
+		questID = API:GetQuestID()
 		numQuestRewards = API:GetNumQuestRewards()
 		numQuestChoices = API:GetNumQuestChoices()
-		numQuestCurrencies = API:GetNumRewardCurrencies()
 		money = API:GetRewardMoney()
-		skillName, skillIcon, skillPoints = API:GetRewardSkillPoints()
 		xp = API:GetRewardXP()
-		artifactXP, artifactCategory = API:GetRewardArtifactXP()
 		honor = API:GetRewardHonor()
 		playerTitle = API:GetRewardTitle()
 		numSpellRewards = API:GetNumRewardSpells()
@@ -321,25 +303,27 @@ function Elements:ShowRewards()
 
 	do -- Spell rewards
 		for rewardSpellIndex = 1, numSpellRewards do
-			local texture, name, isTradeskillSpell, isSpellLearned, hideSpellLearnText, isBoostSpell, garrFollowerID, genericUnlock, spellID = GetSpell(rewardSpellIndex)
-			local knownSpell = tonumber(spellID) and IsSpellKnownOrOverridesKnown(spellID)
+			local texture, name, isTradeskillSpell, isSpellLearned = GetSpell(rewardSpellIndex)
+			local spellID = select(7, GetSpellInfo(name))
+			if spellID then
+				local knownSpell = tonumber(spellID) and IsSpellKnown(spellID)
+			end
 
 			-- only allow the spell reward if user can learn it
-			if IsValidSpellReward(texture, knownSpell, isBoostSpell, garrFollowerID) then
+			if IsValidSpellReward(texture, knownSpell) then
 				numQuestSpellRewards = numQuestSpellRewards + 1
 			end
 		end
 	end
 
-	local totalRewards = numQuestRewards + numQuestChoices + numQuestCurrencies
+	local totalRewards = numQuestRewards + numQuestChoices + numQuestSpellRewards
 
 	do -- Check if any rewards are present, break out if none
 		if ( totalRewards == 0 and 
 			money == 0 and 
 			xp == 0 and 
 			not playerTitle and 
-			numQuestSpellRewards == 0 and 
-			artifactXP == 0 ) then
+			numQuestSpellRewards == 0 ) then
 
 			return self:Hide()
 		end
@@ -359,23 +343,7 @@ function Elements:ShowRewards()
 	local lastFrame = self.Header
 
 	local totalHeight = self.Header:GetHeight()
-	local buttonHeight = 1 -- self.Buttons[1]:GetHeight() 
-
-	do -- Artifact experience
-		self.ArtifactXPFrame:ClearAllPoints()
-		if ( artifactXP > 0 ) then
-			local name, icon = C_ArtifactUI.GetArtifactXPRewardTargetInfo(artifactCategory)
-			self.ArtifactXPFrame:SetPoint('TOPLEFT', lastFrame, 'BOTTOMLEFT', 0, -REWARDS_OFFSET)
-			self.ArtifactXPFrame.Name:SetText(BreakUpLargeNumbers(artifactXP))
-			self.ArtifactXPFrame.Icon:SetTexture(icon or 'Interface\\Icons\\INV_Misc_QuestionMark')
-			self.ArtifactXPFrame:Show()
-
-			lastFrame = self.ArtifactXPFrame
-			totalHeight = totalHeight + self.ArtifactXPFrame:GetHeight() + REWARDS_OFFSET
-		else
-			self.ArtifactXPFrame:Hide()
-		end
-	end
+	local buttonHeight = self.Buttons[1]:GetHeight()
 
 	do -- Setup choosable rewards
 		self.ItemChooseText:ClearAllPoints()
@@ -392,14 +360,18 @@ function Elements:ShowRewards()
 				questItem = GetItemButton(self, index)
 				questItem.type = 'choice'
 				questItem.objectType = 'item'
+				questItem.questID = questID
 				numItems = 1
 				questItem:SetID(i)
 				questItem:Show()
 
 				UpdateItemInfo(questItem)
 
-				local link = GetQuestItemLink(questItem.type, i)
-				local vendorValue = link and select(11, GetItemInfo(link))
+				local vendorValue
+				if (questItem.objectType == 'item') then
+					local link = GetQuestItemLink(questItem.type, i)
+					vendorValue = link and select(11, GetItemInfo(link))
+				end
 				
 				if vendorValue and ( not highestValue or vendorValue > highestValue ) then
 					highestValue = vendorValue
@@ -446,7 +418,6 @@ function Elements:ShowRewards()
 
 	do -- Wipe reward pools
 		self.spellRewardPool:ReleaseAll()
-		self.followerRewardPool:ReleaseAll()
 		self.spellHeaderPool:ReleaseAll()
 	end
 
@@ -456,8 +427,11 @@ function Elements:ShowRewards()
 
 			-- Generate spell buckets
 			for rewardSpellIndex = 1, numSpellRewards do
-				local texture, name, isTradeskillSpell, isSpellLearned, hideSpellLearnText, isBoostSpell, garrFollowerID, genericUnlock, spellID = GetSpell(rewardSpellIndex)
-				local knownSpell = IsSpellKnownOrOverridesKnown(spellID)
+				local texture, name, isTradeskillSpell, isSpellLearned = GetSpell(rewardSpellIndex)
+				local spellID = select(7, GetSpellInfo(name))
+				if spellID then
+					local knownSpell = IsSpellKnown(spellID)
+				end
 				if IsValidSpellReward(texture, knownSpell, isBoostSpell, garrFollowerID) then
 					local bucket = 	isTradeskillSpell 	and QUEST_SPELL_REWARD_TYPE_TRADESKILL_SPELL or
 									isBoostSpell 		and QUEST_SPELL_REWARD_TYPE_ABILITY or
@@ -489,25 +463,15 @@ function Elements:ShowRewards()
 						end
 
 						local anchorFrame
-						if garrFollowerID then
-							local followerFrame = self.followerRewardPool:Acquire()
-							local followerInfo = C_Garrison.GetFollowerInfo(garrFollowerID)
-							followerFrame.Name:SetText(followerInfo.name)
-							ImmersionAPI.SetAtlas(followerFrame.Class, followerInfo.classAtlas)
-							followerFrame.PortraitFrame:SetupPortrait(followerInfo)
-							followerFrame.ID = garrFollowerID
-							followerFrame:Show()
+						local spellRewardFrame = self.spellRewardPool:Acquire()
+						spellRewardFrame.Icon:SetTexture(texture)
+						spellRewardFrame.Name:SetText(name)
+						spellRewardFrame.rewardSpellIndex = rewardSpellIndex
+						spellRewardFrame:Show()
 
-							anchorFrame = followerFrame
-						else
-							local spellRewardFrame = self.spellRewardPool:Acquire()
-							spellRewardFrame.Icon:SetTexture(texture)
-							spellRewardFrame.Name:SetText(name)
-							spellRewardFrame.rewardSpellIndex = rewardSpellIndex
-							spellRewardFrame:Show()
-
-							anchorFrame = spellRewardFrame
-						end
+						SetPortraitToTexture(spellRewardFrame.Icon, texture)
+						
+						anchorFrame = spellRewardFrame
 						if i % 2 ==  1 then
 							anchorFrame:SetPoint('TOPLEFT', lastFrame, 'BOTTOMLEFT', 0, -REWARDS_OFFSET)
 							totalHeight = totalHeight + anchorFrame:GetHeight() + REWARDS_OFFSET
@@ -539,7 +503,7 @@ function Elements:ShowRewards()
 	end
 
 	do -- Setup mandatory rewards
-		if ( numQuestRewards > 0 or numQuestCurrencies > 0 or money > 0 or xp > 0 ) then
+		if ( numQuestRewards > 0 or money > 0 or xp > 0 ) then
 			-- receive text, will either say 'You will receive' or 'You will also receive'
 			local questItemReceiveText = self.ItemReceiveText
 			if ( numQuestChoices > 0 or numQuestSpellRewards > 0 or playerTitle ) then
@@ -562,24 +526,11 @@ function Elements:ShowRewards()
 			end
 
 			do -- XP rewards
-				if ( ToggleRewardElement(self.XPFrame, xp, lastFrame) ) then -- xp was BreakupLargeNumbers(xp) NFSH
+				if ( ToggleRewardElement(self.XPFrame, xp, lastFrame) ) then
 					lastFrame = self.XPFrame
 					totalHeight = totalHeight + self.XPFrame:GetHeight() + REWARDS_OFFSET
-				end
-			end
-
-			do -- Skill Point rewards
-				if ( ToggleRewardElement(self.SkillPointFrame, skillPoints, lastFrame) ) then
-					lastFrame = self.SkillPointFrame
-					self.SkillPointFrame.Icon:SetTexture(skillIcon)
-					if (skillName) then
-						self.SkillPointFrame.Name:SetFormattedText(BONUS_SKILLPOINTS, skillName)
-						self.SkillPointFrame.tooltip = format(BONUS_SKILLPOINTS_TOOLTIP, skillPoints, skillName)
-					else
-						self.SkillPointFrame.tooltip = nil
-						self.SkillPointFrame.Name:SetText('')
-					end
-					totalHeight = totalHeight + buttonHeight + REWARDS_OFFSET
+				else
+					self.Header:SetWidth(200)
 				end
 			end
 
@@ -594,6 +545,7 @@ function Elements:ShowRewards()
 					questItem = GetItemButton(self, index)
 					questItem.type = 'reward'
 					questItem.objectType = 'item'
+					questItem.questID = questID
 					questItem:SetID(i)
 					questItem:Show()
 
@@ -615,43 +567,6 @@ function Elements:ShowRewards()
 					rewardsCount = rewardsCount + 1
 				end
 			end
-			
-			do -- Currency
-				baseIndex = rewardsCount
-				local foundCurrencies = 0
-				buttonIndex = buttonIndex + 1
-				for i = 1, numQuestCurrencies, 1 do
-					index = i + baseIndex
-					questItem = GetItemButton(self, index)
-					questItem.type = 'reward'
-					questItem.objectType = 'currency'
-					questItem:SetID(i)
-					questItem:Show()
-
-					if (UpdateItemInfo(questItem)) then
-
-						if ( buttonIndex > 1 ) then
-							if ( mod(buttonIndex, ITEMS_PER_ROW) == 1 ) then
-								questItem:SetPoint('TOPLEFT', rewardButtons[index - 2], 'BOTTOMLEFT', 0, -2)
-								lastFrame = questItem
-								totalHeight = totalHeight + buttonHeight + 2
-							else
-								questItem:SetPoint('TOPLEFT', rewardButtons[index - 1], 'TOPRIGHT', 1, 0)
-							end
-						else
-							questItem:SetPoint('TOPLEFT', lastFrame, 'BOTTOMLEFT', 0, -REWARDS_OFFSET)
-							lastFrame = questItem
-							totalHeight = totalHeight + buttonHeight + REWARDS_OFFSET
-						end
-						rewardsCount = rewardsCount + 1
-						foundCurrencies = foundCurrencies + 1
-						buttonIndex = buttonIndex + 1
-						if (foundCurrencies == numQuestCurrencies) then
-							break
-						end
-					end
-				end
-			end
 
 			do -- Honor reward 
 				self.HonorFrame:ClearAllPoints()
@@ -660,10 +575,12 @@ function Elements:ShowRewards()
 					local icon = faction and ('Interface\\Icons\\PVPCurrency-Honor-%s'):format(faction)
 
 					self.HonorFrame:SetPoint('TOPLEFT', lastFrame, 'BOTTOMLEFT', 0, -REWARDS_OFFSET)
-					self.HonorFrame.Count:SetText(BreakUpLargeNumbers(honor))
+					self.HonorFrame.Count:SetText(L.BreakUpLargeNumbers(honor))
 					self.HonorFrame.Name:SetText(HONOR)
 					self.HonorFrame.Icon:SetTexture(icon)
 					self.HonorFrame:Show()
+					
+					SetPortraitToTexture(self.HonorFrame.Icon, icon);
 
 					lastFrame = self.HonorFrame
 					totalHeight = totalHeight + self.HonorFrame:GetHeight() + REWARDS_OFFSET
@@ -676,7 +593,6 @@ function Elements:ShowRewards()
 			self.ItemReceiveText:Hide()
 			self.MoneyFrame:Hide()
 			self.XPFrame:Hide()
-			self.SkillPointFrame:Hide()
 			self.HonorFrame:Hide()
 		end
 	end
@@ -709,12 +625,12 @@ function Elements:AcceptQuest()
 		StaticPopup_Show('CONFIRM_ACCEPT_PVP_QUEST')
 	else
 		if ( API:QuestGetAutoAccept() ) then
-			-- AcknowledgeAutoAcceptQuest() -- doesn't exist on 3.3.5a
+			ImmersionFrame:ForceClose()
 		else
 			AcceptQuest()
 		end
 	end
-	PlaySound(ImmersionAPI.SOUNDKIT.IG_QUEST_LIST_OPEN)
+	PlaySound(EnumConst.SOUNDKIT.IG_QUEST_LIST_OPEN)
 end
 
 function Elements:ShowProgress(material)
@@ -724,9 +640,9 @@ function Elements:ShowProgress(material)
 	local self = self.Progress
 	local numRequiredItems = API:GetNumQuestItems()
 	local numRequiredMoney = API:GetQuestMoneyToGet()
-	local numRequiredCurrencies = API:GetNumQuestCurrencies()
 	local buttonIndex, buttons = 1, self.Buttons
-	if ( numRequiredItems > 0 or numRequiredMoney > 0 or numRequiredCurrencies > 0) then
+	
+	if ( numRequiredItems > 0 or numRequiredMoney > 0 ) then
 		self:Show()
 		self.ReqText:Show()
 
@@ -748,30 +664,25 @@ function Elements:ShowProgress(material)
 			self.MoneyFrame:Show()
 
 			-- Reanchor required item
-			if(not buttons[1]) then --  added workaround
-				buttons[1] = GetItemButton(self, 1, 'ProgressItem')
-			end
 			buttons[1]:SetPoint('TOPLEFT', self.MoneyText, 'BOTTOMLEFT', 0, -10)
 		else
 			self.MoneyText:Hide()
 			self.MoneyFrame:Hide()
 			-- Reanchor required item
-			if(not buttons[1]) then --  added workaround
-				buttons[1] = GetItemButton(self, 1, 'ProgressItem')
-			end
 			buttons[1]:SetPoint('TOPLEFT', self.ReqText, 'BOTTOMLEFT', -3, -5)
 		end
 
 		for i=1, numRequiredItems do	
-			local hidden = 0 --IsQuestItemHidden(i)
+			local hidden = 0
 			if ( hidden == 0 ) then
 				local requiredItem = GetItemButton(self, buttonIndex, 'ProgressItem')
 				requiredItem.type = 'required'
 				requiredItem.objectType = 'item'
+				requiredItem.questID = questID
 				requiredItem:SetID(i)
 				requiredItem:Show()
-
-				UpdateItemInfo(requiredItem)
+				
+				UpdateItemInfo(requiredItem, true)
 
 				if ( buttonIndex > 1 ) then
 					if ( mod(buttonIndex, ITEMS_PER_ROW) == 1 ) then
@@ -783,26 +694,6 @@ function Elements:ShowProgress(material)
 
 				buttonIndex = buttonIndex + 1
 			end
-		end
-		
-		for i=1, numRequiredCurrencies do	
-			local requiredItem = GetItemButton(self, buttonIndex, 'ProgressItem')
-			requiredItem.type = 'required'
-			requiredItem.objectType = 'currency'
-			requiredItem:SetID(i)
-			requiredItem:Show()
-
-			UpdateItemInfo(requiredItem)
-
-			if ( buttonIndex > 1 ) then
-				if ( mod(buttonIndex, ITEMS_PER_ROW) == 1 ) then
-					requiredItem:SetPoint('TOPLEFT', buttons[buttonIndex - 2], 'BOTTOMLEFT', 0, -2)
-				else
-					requiredItem:SetPoint('TOPLEFT', buttons[buttonIndex - 1], 'TOPRIGHT', 1, 0)
-				end
-			end
-
-			buttonIndex = buttonIndex + 1
 		end
 	else
 		self:Hide()
@@ -827,7 +718,6 @@ TEMPLATE.QUEST_DETAIL = { chooseItems = nil, contentWidth = 507,
 		Elements.ShowSpecialObjectives, 0, -10,
 		Elements.ShowGroupSize, 0, -10,
 		Elements.ShowRewards, 0, -15,
-		Elements.ShowSeal, 0, 0,
 	}
 }
 

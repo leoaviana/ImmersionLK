@@ -1,32 +1,31 @@
 ## Interface: 30300
-## Title: ImmersionLK
+## Title: Immersion
 ## Notes: Immersive replacement for quest & gossip
-## Version: 1.0.0
-
+## Version: 1.4.14
 ## Author: Sebastian Lindfors
-## Ported-by: leoaviana
 ## SavedVariables: ImmersionSetup
-## SavedVariablesPerCharacter: IMM_QUESTSTATUS 
 ## OptionalDeps: ConsolePort
 
 # Locale
 Locale\Locale.xml
 
-#@no-lib-qtr@
+# Libs
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
 Libs\AceGUI-3.0\AceGUI-3.0.xml
 Libs\AceConfig-3.0\AceConfig-3.0.xml
-#@end-no-lib-qtr@
-
 
 # Compatibility scripts
+Methods\Constants.lua
+Methods\Utils.lua
+Methods\Extensions.lua
+Methods\C_Timer.lua
 Compat.lua
 Interface.lua
 
-
 # Extra stuff & config
 Utils.lua
+Pools.lua
 Config.lua
 
 # Secure UI

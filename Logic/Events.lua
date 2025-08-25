@@ -8,7 +8,7 @@ function Events:GOSSIP_SHOW(customGossipHandler)
 end
 
 function Events:GOSSIP_CLOSED(...)
-	API:CloseGossip(true, ...)
+	API:CloseGossip(...)
 	self:PlayOutro()
 	L.ClickedTitleCache = nil
 end
@@ -19,6 +19,7 @@ function Events:QUEST_GREETING(...)
 end
 
 function Events:QUEST_PROGRESS(...) -- special case, doesn't use QuestInfo
+	self.IsAvailableQuestID = GetTitleText()
 	self:PlayIntro('QUEST_PROGRESS')
 	self:AddHint('CROSS', CONTINUE)
 	self:ToggleHintState('CROSS', API:IsQuestCompletable())
@@ -36,6 +37,7 @@ function Events:QUEST_PROGRESS(...) -- special case, doesn't use QuestInfo
 end
 
 function Events:QUEST_COMPLETE(...)
+	self.IsAvailableQuestID = GetTitleText()
 	self:PlayIntro('QUEST_COMPLETE')
 	self:UpdateTalkingHead(API:GetTitleText(), API:GetRewardText(), 'ActiveQuest')
 	self:AddQuestInfo('QUEST_REWARD')
@@ -43,12 +45,15 @@ function Events:QUEST_COMPLETE(...)
 end
 
 function Events:QUEST_FINISHED(...)
-	API:CloseQuest(true)
+	API:CloseQuest()
 	self:PlayOutro()
 --	if self:IsGossipAvailable(true) then
 --		self:OnEvent('GOSSIP_SHOW')
 --		self.TitleButtons:OnEvent('GOSSIP_SHOW')
 --	end
+	if L('hideui') and L('camerarotationenabled') then 
+		MoveViewRightStop()
+	end
 end
 
 function Events:QUEST_DETAIL(...)
@@ -56,6 +61,8 @@ function Events:QUEST_DETAIL(...)
 		self:PlayOutro()
 		return
 	end
+	self.IsAvailableQuestID = GetTitleText()
+	self.IsAvailableQuestObjective = GetObjectiveText()
 	self:PlayIntro('QUEST_DETAIL')
 	self:UpdateTalkingHead(API:GetTitleText(), API:GetQuestText(), 'AvailableQuest')
 	self:AddQuestInfo('QUEST_DETAIL')
@@ -79,16 +86,14 @@ function Events:ITEM_TEXT_BEGIN()
 	if creator then
 		title = title .. ' (' .. FROM .. ' ' .. creator .. ')'
 	end
-	DoEmote('read')
-	self:RegisterEvent('PLAYER_STARTED_MOVING')
 	self:PlayIntro('ITEM_TEXT_BEGIN')
-	self:UpdateTalkingHead(title, '', 'TrainerGossip', 'player')
+	self:UpdateTalkingHead(title, '', 'TrainerGossip', 'BookReading')
 end
 
 function Events:ITEM_TEXT_READY()
 	-- special case: pages need to be concatened together before displaying them.
 	-- each new page re-triggers this event, so keep changing page until we run out.
-	self.itemText = (self.itemText or '') .. '\n' .. (ItemTextGetText() or '')
+	self.itemText = (self.itemText or '') .. '\n' .. (ItemTextGetText() or ''):gsub('%b<>', '')
 	if ItemTextHasNextPage() then
 		ItemTextNextPage()
 		return
@@ -100,33 +105,7 @@ end
 
 function Events:ITEM_TEXT_CLOSED()
 	local time = GetTime()
-	if not self.readEmoteCancelled and ( self.lastTextClosed ~= time ) then
-		DoEmote('read')
-	end
 	self.lastTextClosed = time
-	self.readEmoteCancelled = nil
 	self.itemText = nil
-	self:UnregisterEvent('PLAYER_STARTED_MOVING')
 	self:PlayOutro()
-end
-
-function Events:PLAYER_STARTED_MOVING()
-	self.readEmoteCancelled = true
-	return 'ITEM_TEXT_READY'
-end
-
-
-function Events:NAME_PLATE_UNIT_ADDED()
-	self.TalkBox:UpdateNameplateAnchor()
-	return self.lastEvent
-end
-
-function Events:NAME_PLATE_UNIT_REMOVED()
-	self.TalkBox:UpdateNameplateAnchor()
-	return self.lastEvent
-end
-
-function Events:SUPER_TRACKING_CHANGED()
-	self:PlaySuperTrackedQuestToast(ImmersionAPI:GetSuperTrackedQuestID())
-	return self.lastEvent
 end

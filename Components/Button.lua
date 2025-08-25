@@ -15,14 +15,14 @@ function Button:OnClick()
 	if func then
 		L.ClickedTitleCache = {text = self:GetText(); icon = self.Icon:GetTexture()}
 		func(self)
-		PlaySound(ImmersionAPI.SOUNDKIT.IG_QUEST_LIST_SELECT)
+		PlaySound(EnumConst.SOUNDKIT.IG_QUEST_LIST_SELECT)
 	end
 end
 
 function Button:OnShow()
-	ImmersionAPI.SetShown(self.Counter, L('enablenumbers'))
+	self.Counter:SetShown(L('enablenumbers'))
  	local id = self.idx or 1
-	ImmersionAPI.TimerAfter(id * 0.025, function()
+	C_Timer.After(id * 0.025, function()
 		L.UIFrameFadeIn(self, 0.2, self:GetAlpha(), 1)
 	end)
 end
@@ -83,7 +83,7 @@ function Button:SetIcon(texture, vertex, atlas)
 	vertex = vertex or 1
 	self.Icon:SetVertexColor(vertex, vertex, vertex)
 	if atlas then
-		ImmersionAPI.SetAtlas(self.Icon, texture)
+		self.Icon:SetAtlas(texture)
 	else
 		self.Icon:SetTexture(texture)
 	end
@@ -92,13 +92,13 @@ end
 
 function Button:SetGossipQuestIcon(texture, vertex)
 	vertex = vertex or 1
-	self.Icon:SetTexture(tonumber(texture) or ([[Interface\GossipFrame\%s]]):format(texture or ''))
+	self.Icon:SetTexture(([[Interface\GossipFrame\%s]]):format(texture or ''))
 	self.Icon:SetVertexColor(vertex, vertex, vertex)
 end
 
 function Button:SetGossipIcon(texture, vertex)
 	vertex = vertex or 1
-	self.Icon:SetTexture(tonumber(texture) or ([[Interface\GossipFrame\%sGossipIcon]]):format(texture or ''))
+	self.Icon:SetTexture(([[Interface\GossipFrame\%sGossipIcon]]):format(texture or ''))
 	self.Icon:SetVertexColor(vertex, vertex, vertex)
 end
 
@@ -125,7 +125,7 @@ function Button:Init(id)
 		top and 'TOP' or 'BOTTOM',
 		0, 0,
 	}
-
+	----------------------------------
 	self:SetPoint(unpack(self.anchor))
 	----------------------------------
 	self.Counter:SetText(id < 10 and id or '')

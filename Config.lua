@@ -75,6 +75,13 @@ L.defaults = {
 	boxoffsetY = 150,
 	boxlock = true,
 	boxpoint = 'Bottom',
+	
+	camerarotationenabled = false,
+	hdmodels = false,
+	bookreading = true,
+	
+	gossipmode = false,
+    debuginfo = false,
 
 	disableprogression = false,
 	flipshortcuts = false,
@@ -83,7 +90,7 @@ L.defaults = {
 
 	inspect = 'SHIFT',
 	accept = 'SPACE',
-	reset = 'R',
+	reset = 'BACKSPACE',
 }---------------------------------
 
 local stratas = {
@@ -133,7 +140,7 @@ L.options = {
 					args = {
 						boxlock = {
 							type = 'toggle',
-							name = "Model" .. ' / ' .. "Text", --MODEL .. ' / ' .. LOCALE_TEXT_LABEL,
+							name = MODEL .. ' / ' .. "Text",
 							get = L.GetFromSV,
 							set = function(_, val) L.cfg.boxlock = val end,
 							order = 0,
@@ -154,21 +161,21 @@ L.options = {
 					order = 1,
 					args = {
 						delaydivisor = {
-							type = 'range',
-							name = 'Text speed',
-							desc = L['Change the speed of text delivery.'] .. '\n\n' ..
-								MINIMUM .. '\n"' ..  L['How are you doing today?'] .. '"\n  -> ' .. 
-								format(D_SECONDS, (strlen(L['How are you doing today?']) / 5) + 2)  .. '\n\n' .. 
-								MAXIMUM .. '\n"' .. L['How are you doing today?'] .. '"\n  -> ' .. 
-								format(D_SECONDS, (strlen(L['How are you doing today?']) / 40) + 2),
-							min = 5,
-							max = 40,
-							step = 5,
-							order = 1,
-							get = L.GetFromDefaultOrSV,
-							set = function(self, val) 
-								L.cfg.delaydivisor = val
-							end,
+						type = 'range',
+						name = 'Text speed',
+						desc = L['Change the speed of text delivery.'] .. '\n\n' ..
+							MINIMUM .. '\n"' ..  L['How are you doing today?'] .. '"\n  -> ' .. 
+							format(D_SECONDS, (strlen(L['How are you doing today?']) / 5) + 2)  .. '\n\n' .. 
+							MAXIMUM .. '\n"' .. L['How are you doing today?'] .. '"\n  -> ' .. 
+							format(D_SECONDS, (strlen(L['How are you doing today?']) / 40) + 2),
+						min = 5,
+						max = 40,
+						step = 5,
+						order = 1,
+						get = L.GetFromDefaultOrSV,
+						set = function(self, val) 
+							L.cfg.delaydivisor = val
+						end,
 						},
 						disableprogression = {
 							type = 'toggle',
@@ -243,7 +250,7 @@ L.options = {
 							type = 'toggle',
 							name = L['Hide objective tracker'],
 							disabled = function() return not L('hideui') end,
-							order = 1,
+							order = 2,
 							get = L.GetFromSV,
 							set = function(_, val) 
 								L.cfg.hidetracker = val 
@@ -254,15 +261,24 @@ L.options = {
 							type = 'toggle',
 							name = L['Hide tooltip'],
 							disabled = function() return not L('hideui') end,
-							order = 1,
+							order = 3,
 							get = L.GetFromSV,
 							set = function(_, val)
 								L.cfg.hidetooltip = val
 							end,
 						},
+						camerarotationenabled = {
+							type = 'toggle',
+							name = BINDING_NAME_SWINGCAMERA,
+							disabled = function() return not L('hideui') end,
+							order = 4,
+							get = L.GetFromSV,
+							set = function(_, val)
+								L.cfg.camerarotationenabled = val
+							end,
+						},
 					},
-				}, 
-                --[==[]]
+				},
 				ontheflybox = {
 					type = 'group',
 					name = PLAYBACK,
@@ -282,42 +298,89 @@ L.options = {
 							order = 1,
 							name = L["The quest/gossip text doesn't vanish when you stop interacting with the NPC or when accepting a new quest. Instead, it vanishes at the end of the text sequence. This allows you to maintain your immersive experience when speed leveling."],
 						},
-						supertracked = {
+						gossipmode = {
 							type = 'toggle',
-							name = OBJECTIVES_TRACKER_LABEL,
+							name = L['Every interaction'],
 							order = 2,
 							get = L.GetFromSV,
-							set = function(_, val) L.cfg.supertracked = val end,
+							set = function(_, val) L.cfg.gossipmode = val end,
 						},
-						supertrackeddesc = {
+						gossipmodedesc = {
 							type = 'description',
 							fontSize = 'medium',
 							order = 3,
-							name = L["When a quest is supertracked (clicked on in the objective tracker, or set automatically by proximity), the quest text will play if nothing else is obstructing it."],
+							name = L['Show every time when you interacting with the NPC, if disabled and there is only non-gossip option then go to it directly.'],
+						},
+						-- supertracked = {
+							-- type = 'toggle',
+							-- name = OBJECTIVES_TRACKER_LABEL,
+							-- order = 2,
+							-- get = L.GetFromSV,
+							-- set = function(_, val) L.cfg.supertracked = val end,
+						-- },
+						-- supertrackeddesc = {
+							-- type = 'description',
+							-- fontSize = 'medium',
+							-- order = 3,
+							-- name = L["When a quest is supertracked (clicked on in the objective tracker, or set automatically by proximity), the quest text will play if nothing else is obstructing it."],
+						-- },
+					},
+				},
+				onhdmodels = {
+					type = 'group',
+					name = L['HD Models'],
+					inline = true,
+					order = 4,
+					args = {
+						hdmodels = {
+							type = 'toggle',
+							name = L['HD Models'],
+							order = 0,
+							get = L.GetFromSV,
+							set = function(_, val) L.cfg.hdmodels = val end,
+						},
+						hdmodelsdesc = {
+							type = 'description',
+							fontSize = 'medium',
+							name = L['Support for correct adjustment of portrait models and animations if player uses patches of HD models'],
 						},
 					},
 				},
-				talkinghead = {
+				debugmode = {
 					type = 'group',
-					name = L['Hook talking head'],
+					name = 'Debug',
 					inline = true,
 					order = 5,
 					args = {
-						movetalkinghead = {
+						debuginfo = {
 							type = 'toggle',
-							name = "Videos Options Enabled",
+							name = 'Debug mode',
 							order = 0,
 							get = L.GetFromSV,
-							set = function(_, val) L.cfg.movetalkinghead = val end,
-						},
-						movetalkingheaddesc = {
-							type = 'description',
-							fontSize = 'medium',
-							name = L["The regular talking head frame appears in the same place as Immersion when you're not interacting with anything and on top of Immersion if they are visible at the same time."],
+							set = function(_, val) L.cfg.debuginfo = val end,
 						},
 					},
-				}, 
-				--]==]
+				},
+				-- talkinghead = {
+					-- type = 'group',
+					-- name = L['Hook talking head'],
+					-- inline = true,
+					-- order = 5,
+					-- args = {
+						-- movetalkinghead = {
+							-- type = 'toggle',
+							-- name = VIDEO_OPTIONS_ENABLED,
+							-- order = 0,
+							-- get = L.GetFromSV,
+							-- set = function(_, val) L.cfg.movetalkinghead = val end,
+						-- },
+						-- movetalkingheaddesc = {
+							-- type = 'description',
+							-- fontSize = 'medium',
+							-- name = L["The regular talking head frame appears in the same place as Immersion when you're not interacting with anything and on top of Immersion if they are visible at the same time."],
+						-- },
+					-- },
+				-- },
 			},
 		},
 		keybindings = {
@@ -356,7 +419,7 @@ L.options = {
 				},
 				enablenumbers = {
 					type = 'toggle',
-					name = '[1-9] ' .. "Select An Action",  -- lol
+					name = '[1-9] ' .. PET_BATTLE_SELECT_AN_ACTION, -- lol
 					desc = L.GetListString(QUESTS_LABEL, GOSSIP_OPTIONS),
 					get = L.GetFromSV,
 					set = function(_, val) L.cfg.enablenumbers = val end,
@@ -414,12 +477,12 @@ L.options = {
 					fontSize = 'medium',
 					order = 5,
 					name = L.GetListString(
-								"Model" ..' / '.. "Text" ..': '..L['Customize the talking head frame.'],
+								MODEL ..' / '.. "Text" ..': '..L['Customize the talking head frame.'],
 								QUESTS_LABEL..' / '..GOSSIP_OPTIONS..': '..L['Change the placement and scale of your dialogue options.']) .. '\n',
 				},
 				box = {
 					type = 'group',
-					name = "Model" .. ' / ' .. "Text",
+					name = MODEL .. ' / ' .. "Text",
 					inline = true,
 					order = 6,
 					args = {
@@ -430,7 +493,7 @@ L.options = {
 							get = L.GetFromSV,
 							set = function(_, val) 
 								L.cfg.solidbackground = val
-								ImmersionAPI.SetShown(L.frame.TalkBox.BackgroundFrame.SolidBackground, val)
+								L.frame.TalkBox.BackgroundFrame.SolidBackground:SetShown(val)
 								L.frame.TalkBox.Elements:SetBackdrop(val and L.Backdrops.TALKBOX_SOLID or L.Backdrops.TALKBOX)
 							end,
 						},
@@ -455,8 +518,8 @@ L.options = {
 							get = L.GetFromSV,
 							set = function(_, val) 
 								L.cfg.disableportrait = val
-								ImmersionAPI.SetShown(L.frame.TalkBox.PortraitFrame, not val)
-								ImmersionAPI.SetShown(L.frame.TalkBox.MainFrame.Model.PortraitBG, not val)
+								L.frame.TalkBox.PortraitFrame:SetShown(not val)
+								L.frame.TalkBox.MainFrame.Model.PortraitBG:SetShown(not val)
 							end,
 						},
 						disableanisequence = {
@@ -492,7 +555,7 @@ L.options = {
 						},
 						resetposition = {
 							type = 'execute',
-							name = "Reset Position",
+							name = RESET_POSITION,
 							order = 7,
 							func = function(self)
 								L.Set('boxpoint', L.defaults.boxpoint)
@@ -565,6 +628,26 @@ L.options = {
 								L.cfg.inspect = val
 							end,
 							style = 'dropdown',
+						},
+					},
+				},
+				itemtextread = {
+					type = 'group',
+					name = ITEMS .. ' / ' .. GUILD_BANK_TAB_INFO,
+					inline = true,
+					order = 9,
+					args = {
+						bookreading = {
+							type = 'toggle',
+							name = L['Books'],
+							order = 0,
+							get = L.GetFromSV,
+							set = function(_, val) L.cfg.bookreading = val end,
+						},
+						bookreadingdesc = {
+							type = 'description',
+							fontSize = 'medium',
+							name = L['Reading books in Immersive style |cffffff7d0a[BETA]|r'],
 						},
 					},
 				},

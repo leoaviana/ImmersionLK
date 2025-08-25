@@ -2,7 +2,7 @@
 Keybinding Widget
 Set Keybindings in the Config UI.
 -------------------------------------------------------------------------------]]
-local Type, Version = "Keybinding", 22
+local Type, Version = "Keybinding", 21
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
 if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 
@@ -108,7 +108,6 @@ local methods = {
 		self.waitingForKey = nil
 		self.msgframe:Hide()
 		self:SetDisabled(false)
-		self.button:EnableKeyboard(false)
 	end,
 
 	-- ["OnRelease"] = nil,
@@ -186,7 +185,6 @@ local function Constructor()
 	button:SetPoint("BOTTOMLEFT")
 	button:SetPoint("BOTTOMRIGHT")
 	button:SetHeight(24)
-	button:EnableKeyboard(false)
 
 	local text = button:GetFontString()
 	text:SetPoint("LEFT", 7, 0)

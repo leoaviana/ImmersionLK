@@ -5,10 +5,6 @@
 -- using ConsolePort, providing input handler and
 -- displaying on-screen hints.
 
-
--- This file is also used as input handler even without ConsolePort, due to 3.3.5a client limitations like
--- SetPropagateKeyboardInput being not available and UI taint in combat.
-
 -------------------------------------------------
 -- Initialization
 -------------------------------------------------
@@ -31,6 +27,9 @@ do
 		'ClearImmersionFocus';
 		'ParseControllerCommand';
 	}
+
+	-- Since SetPropagate is not available on WOTLK, I'll use ConsolePort's controller code. it will help not getting stuck in place
+	-- while taking a quest.
 
 	if not ConsolePort then
 		HANDLE = L:GetControlHandle() 
@@ -245,7 +244,7 @@ local function GetUIControlKey(button)
 	end
 end
 
-function NPC:OnInput(key, down, keyname)   
+function NPC:OnInput(key, down, keyname)
 	key = tonumber(key) 
 	if(down) then
 		if controllerInterrupt then
@@ -272,6 +271,11 @@ function NPC:OnInput(key, down, keyname)
 				if(keyname == L.cfg.goodbye or keyname == "ESCAPE") then
 					API:CloseGossip()
 					API:CloseQuest()
+				elseif L.cfg.enablenumbers and (tonumber(keyname) and tonumber(keyname) >= 1 and tonumber(keyname) <= 9) then
+					if(self.TitleButtons:GetMaxIndex() >= tonumber(keyname)) then
+						self.TitleButtons:SetFocus(tonumber(keyname))
+						self.TitleButtons:ClickFocused()
+					end
 				elseif(keyname == L.cfg.accept) then
 					-- Gossip/multiple quest choices
 					if self.TitleButtons:GetMaxIndex() > 0 then
@@ -299,28 +303,6 @@ function NPC:OnInput(key, down, keyname)
 					local text = self.TalkBox.TextFrame.Text
 					if text:IsSequence() then 
 						text:RepeatTexts() 
-					end
-				elseif(L.cfg.enablenumbers and string.find(keyname, "number_") ~= nil) then
-					local id = tonumber(string.match(keyname, "%d+"))
-					if self.hasItems then
-						local choiceIterator = 0
-						for _, item in ipairs(self.TalkBox.Elements.Content.RewardsFrame.Buttons) do
-							if item:IsVisible() and item.type == 'choice' then
-								choiceIterator = choiceIterator + 1
-								if choiceIterator == id then
-									item:Click()
-									return
-								end
-							end
-						end
-					else
-						local button = self.TitleButtons.Buttons[id]
-						if button then
-							button.Hilite:SetAlpha(1)
-							button:Click()
-							button:OnLeave()
-							PlaySound(SOUNDKIT.IG_QUEST_LIST_SELECT)
-						end
 					end
 				end
 			end

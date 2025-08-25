@@ -1,5 +1,6 @@
 local _, L = ...
 local NPC, Text = ImmersionFrame, ImmersionFrame.TalkBox.TextFrame.Text
+local API = ImmersionAPI;
 ----------------------------------
 local playbackQueue, questCache = {}, {}
 local QUEST_TOAST_CACHE_LIMIT = 30
@@ -16,12 +17,12 @@ end
 local function IsFrameReady()
 	local event = NPC.lastEvent or ''
 	local notInGossip = event:match('GOSSIP') and not UnitExists('npc')
-	local notInQuest = NPC:IsObstructingQuestEvent(event) and ImmersionAPI:GetQuestID() == 0
-
-	return notInGossip or notInQuest
+	local notInQuest = NPC:IsObstructingQuestEvent(event) and NPC:IsNotQuestDisplayed(event)
+	local notInObjectOrItem = NPC:IsNPCObjectOrItem(notInGossip, notInQuest)
+	return notInGossip or notInQuest or notInObjectOrItem
 end
 
-local function CanToastPlay() 
+local function CanToastPlay()
 	return IsFrameReady() and #playbackQueue > 0
 end
 
@@ -55,9 +56,9 @@ local function QueueToast(tbl, title, text, purpose, unit)
 			title 	= title;
 			text 	= text;
 			purpose = purpose;
-			questID = ImmersionAPI:GetQuestID();
+			questID = API:GetQuestID();
 			youSaid = L.ClickedTitleCache or {};
-			display = ImmersionAPI:GetCreatureID(unit);
+			display = API:GetCreatureID(unit);
 		})
 	end
 end
@@ -78,7 +79,7 @@ function NPC:PlaySuperTrackedQuestToast(questID)
 	end
 end
 
-function NPC:PlayToasts(obstructingFrameOpen) 
+function NPC:PlayToasts(obstructingFrameOpen)
 	if CanToastPlay() and not obstructingFrameOpen and not self:IsToastObstructed() then
 		local toast = playbackQueue[1]
 		if toast then
@@ -133,7 +134,7 @@ do	-- OBSTRUCTION:
 	end
 
 	local function AddToastObstructor(frame)
-		--assert(C_Widget.IsFrameWidget(frame), 'ImmersionToast:AddObstructor(frame): invalid frame widget') NFSH?
+		-- assert(C_Widget.IsFrameWidget(frame), 'ImmersionToast:AddObstructor(frame): invalid frame widget')
 		frame:HookScript('OnShow', ObstructorOnShow)
 		frame:HookScript('OnHide', ObstructorOnHide)
 
@@ -147,12 +148,10 @@ do	-- OBSTRUCTION:
 	-- Force base frames and TalkingHeadFrame.
 	if LevelUpDisplay then AddToastObstructor(LevelUpDisplay) end
 	if AlertFrame then AddToastObstructor(AlertFrame) end
+end
 
-	if TalkingHeadFrame then
-		AddToastObstructor(TalkingHeadFrame)
-	elseif TalkingHead_LoadUI then
-		hooksecurefunc('TalkingHead_LoadUI', function() AddToastObstructor(TalkingHeadFrame) end)
-	end
+function NPC:IsToastDone()
+	return #playbackQueue
 end
 
 

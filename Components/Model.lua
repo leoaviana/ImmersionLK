@@ -16,78 +16,12 @@ function Model:RunNextAnimation() if
 	self.yelling then self:Yell() elseif
 	self.talking then self:Talk() else
 	self:Reset() end 
-end 
-
-
-local Started = false 
-local RunTime = 2000
-local Seqtime = 0 
-
-local varieibol
-
-local function RunAnimation(self, elapsed)
-	Seqtime = Seqtime + (elapsed * 1000)
-	if Seqtime > RunTime then 
-		self:SetScript("OnUpdate", nil)
-		Started = false
-		return  
-	end  
-	
-	self:SetSequenceTime(self.animation, Seqtime)
-end
-
-function Model:StopAll()
-	self:SetScript("OnUpdate", nil)
-	Started = false
-	Seqtime = 0
 end
 
 function Model:SetAnimation(...)
 	self.animation = ...
 	self.animstart = GetTime()
- 
-	--getmetatable(self).__index.SetSequence(self, ...) 
-
-	if(type(self:GetModel()) == "table") or self.animation == 0 then return end  
-
-	if(Model.AnimReplacementWorkaround[self:GetModel()]) then  
-		if(... == self.ani.talking) then
-			if(Model.AnimReplacementWorkaround[self:GetModel()]["talk"]) then
-				if(Model.AnimReplacementWorkaround[self:GetModel()]["talk"] ~= "") then
-					self.animation = tonumber(Model.AnimReplacementWorkaround[self:GetModel()]["talk"]);
-				end
-			end					
-		elseif(... == self.ani.yelling) then
-			if(Model.AnimReplacementWorkaround[self:GetModel()]["yell"]) then
-				if(Model.AnimReplacementWorkaround[self:GetModel()]["yell"] ~= "") then
-					self.animation = tonumber(Model.AnimReplacementWorkaround[self:GetModel()]["yell"]);
-				end
-			end
-		elseif(... == self.ani.asking) then
-			if(Model.AnimReplacementWorkaround[self:GetModel()]["ask"]) then
-				if(Model.AnimReplacementWorkaround[self:GetModel()]["ask"] ~= "") then
-					self.animation = tonumber(Model.AnimReplacementWorkaround[self:GetModel()]["ask"]);
-				end
-			end
-		elseif(... == self.ani.reading) then
-			if(Model.AnimReplacementWorkaround[self:GetModel()]["read"]) then
-				if(Model.AnimReplacementWorkaround[self:GetModel()]["read"] ~= "") then
-					self.animation = tonumber(Model.AnimReplacementWorkaround[self:GetModel()]["read"]);
-				end
-			end
-		end  
-	end 
-
-
-	if(not Started == true) then 
-		Seqtime = 0  
-		self:SetScript("OnUpdate", nil) 
-		Started = false
-	end 
-
-	Seqtime = 0
-	self:SetScript("OnUpdate", RunAnimation) 
-	Started = true
+	getmetatable(self).__index.SetAnimation(self, ...)
 end
 
 ----------------------------------
@@ -105,7 +39,11 @@ end
 function Model:SetUnit(unit)
 	self.unitDirty = unit
 	if self:IsVisible() then
-		self:ClearModel()
+		self:SetModelScale(1)
+		self:SetPosition(0, 0, 0)
+		if not L('onthefly') then
+			self:ClearModel()
+		end
 		self:MarkDefectModel(false)
 		self:ApplyModelFromUnit(unit)
 	end
@@ -119,42 +57,25 @@ function Model:IsDefectModel()
 	return self.defectmodel
 end
 
-function Model:ApplyModelFromUnit(unit) 
-	if self.file[unit] then unit = "player" end
-		--self:SetModel(self.file[unit])
-		--self:SetCamDistanceScale(.4)
-		--self:SetPortraitZoom(0)
-		--self:SetPosition(0, 0, .25)
-		--self.unit = 'ether' 
---	else
-	local mt = getmetatable(self).__index	
-	local creatureID = tonumber(unit) and tonumber(unit) or unit ~= 'player' and API:GetCreatureID(unit) or nil
-	local apply = creatureID and mt.SetCreature or unit and mt.SetUnit 
-	--self:SetCamDistanceScale(1) 
-	--self:SetPortraitZoom(.85)
-	self:SetPosition(0, 0, 0)
-	if apply then 
-		apply(self, creatureID or unit)
-		self.creatureID = creatureID
-		self.unit = tonumber(unit) and 'npc' or unit
-	end
---	end  
-
-	-- apply face camera workarounds if available/needed
-	if(Model.AnimCameraWorkaround[self:GetModel()]) then
-		if(Model.AnimCameraWorkaround[self:GetModel()]["nofacecamera"]) then
-			local cameraworkaround = L.splitstr(Model.AnimCameraWorkaround[self:GetModel()]["camerapos"], ',');
-			local camwrkX = tonumber(cameraworkaround[1]);
-			local camwrkY = tonumber(cameraworkaround[2]);
-			local camwrkZ = tonumber(cameraworkaround[3]);
-
-			self:SetPosition(camwrkX,camwrkY,camwrkZ)
-		else
-			self:SetCamera(0);
-		end
+function Model:ApplyModelFromUnit(unit)
+	if self.file[unit] then
+		self:SetModel(self.file[unit])
+        self:CheckErrorModel(self:GetModel())
+		self:SetCamDistanceScale(1.75)
+        self:SetAlpha(1)
+		self:Reset()
+		self.unit = 'ether'
 	else
-		self:SetCamera(0);
-	end 
+		local mt = getmetatable(self).__index
+		local creatureID = tonumber(unit) -- or API:GetCreatureID(unit)
+		local apply = creatureID and mt.SetCreature or unit and mt.SetUnit
+		if apply then
+			apply(self, creatureID or unit)
+			self:SetCamDistanceScale(0.47)
+			self.creatureID = creatureID
+			self.unit = creatureID and 'npc' or unit
+		end
+	end
 end
 
 ----------------------------------
@@ -162,7 +83,7 @@ end
 ----------------------------------
 function Model:SetRemainingTime(start, remaining)
 	self.timestamp = start or GetTime()
-	self.delay = remaining or 0 
+	self.delay = remaining or 0
 end
 
 function Model:GetRemainingTime(start, remaining)
@@ -190,7 +111,7 @@ function Model:PrepareAnimation(text, isEmote, isSequence)
 			self[state] = nil
 		end
 	else
-		self.reading = self.unit:match('player') and true
+		self.reading = self.unit:match('ether') and true
 		if not self.reading then
 			self.asking  = text:match('?')
 			self.yelling = text:match('!')
@@ -199,11 +120,11 @@ function Model:PrepareAnimation(text, isEmote, isSequence)
 	end
 end
 
-function Model:RunSequence(remainingTime, isSequence) 
+function Model:RunSequence(remainingTime, isSequence)
 	if self:IsNPC() then
-		self:StopAll()
-		if not L('disableanisequence') then 
+		if not L('disableanisequence') then
 			self:SetRemainingTime(GetTime(), remainingTime)
+			self.remainingTime = remainingTime
 			if self.asking and not isSequence then
 				self:Ask()
 			elseif self.yelling then
@@ -212,93 +133,76 @@ function Model:RunSequence(remainingTime, isSequence)
 				self:Talk()
 			end
 		end
-	elseif self:IsPlayer() then
-		self:Read()
+	elseif self:IsEther() then
+		-- self:Read()
+		self:Reset()
 	end
 end
 
 function Model:Randomize(animation)
 	local rand = random(2) == 2
-	self:SetAnimation(rand and animation or self.ani.asking)
+	self:SetAnimation(rand and animation or self.ani.talking)
 end
 
 ----------------------------------
 -- Handler
----------------------------------- 
-
-function Model:OnAnimFinished() 
+----------------------------------
+function Model:OnAnimFinished()
 	if self:IsDefectModel() then return end
 	-----------------------------------
 	local isPremature, difference = self:IsPrematureFinish(self.animstart)
+	local modelFile = self:HasDefectAnimation()
 	if isPremature then
-		--self:MarkDefectModel(true)
-		--self:Reset() 
-		--return
-	end 
+		self:MarkDefectModel(modelFile)
+		self.duration = self:GetDefectModelAnimationDuration(self.animation)
+		return
+	end
 	-----------------------------------
-	if self:IsPlayer() then
-		self:Read()
+	if self:IsEther() then
+		self:Reset()
 	else
 		local newTime, difference = self:GetRemainingTime(self.timestamp, self.delay)
-		if newTime and difference then 
+		if newTime and difference then
 			self:SetRemainingTime(newTime, ( self.delay - 1) - difference)
 			self.talking = true
 			if self.asking then
-				self:Ask() 
+				self:Ask()
 			elseif self.yelling then
 				self:Randomize(self.ani.yelling)
 			else
-				self:Talk() 
+				self:Talk()
 			end
 		else
 			self:SetRemainingTime(nil, nil)
 			self:PrepareAnimation(nil, nil)
-			--self:Reset()
+			self:Reset()
 		end
 	end
 end
 
-function Model:OnShow() 
-	self:ClearModel()
+function Model:OnShow()
 	if self.unitDirty then
 		self:MarkDefectModel(false)
 		self:ApplyModelFromUnit(self.unitDirty)
+        L.DebugInfo(self:GetModelFile())
 	end
-end 
- 
+end
+
+function Model:OnHide()
+	self:ClearModel()
+	self:SetModelScale(1)
+	self:SetPosition(0, 0, 0)
+	self.duration = nil
+    self.animtime = nil
+	self.animation = nil
+end
+
+
 ----------------------------------
 -- Consts
 ----------------------------------
-
--- AnimReplacementWorkaround:
--- used on models which has a bugged talk,yell,ask,read animation OR no face camera on Model frame.
--- (blood elf female based skeleton has multiple talk anim for example and must be replaced to another animation
--- because unfortunately it glitches.)
--- beware that using custom patches that changes ingame models to hd models may also cause some problems related
--- to character face camera.
-
-Model.AnimReplacementWorkaround = {
-["character\\bloodelf\\female\\bloodelffemale.m2"] = {["talk"]="65",["yell"]="",["ask"]="",["read"]="" }, -- multiple talk animations, unexpected behavior on PlayerModel frame, replacing to ask instead
-["creature\\alexstrasza\\ladyalexstrasa.m2"] = {["talk"]="65",["yell"]="",["ask"]="",["read"]="" }, -- multiple talk animations, unexpected behavior on PlayerModel frame, replacing to ask instead
-["creature\\bloodqueen\\bloodqueen.m2"] = {["talk"]="65",["yell"]="",["ask"]="",["read"]="" }, -- multiple talk animations, unexpected behavior on PlayerModel frame, replacing to ask instead
-["creature\\felelfcasterfemale\\felelfcasterfemale.m2"] = {["talk"]="65",["yell"]="",["ask"]="",["read"]="" }, -- multiple talk animations, unexpected behavior on PlayerModel frame, replacing to ask instead
-["creature\\felelfhunterfemale\\felelfhunterfemale.m2"] = {["talk"]="65",["yell"]="",["ask"]="",["read"]="" }, -- multiple talk animations, unexpected behavior on PlayerModel frame, replacing to ask instead
-["creature\\ladysylvanaswindrunner\\ladysylvanaswindrunner.m2"] = {["talk"]="65",["yell"]="",["ask"]="",["read"]="" }, -- multiple talk animations, unexpected behavior on PlayerModel frame, replacing to ask instead
-}
-
-
--- AnimCameraWorkaround
--- this workaround applies on models which there is no face camera available, for example a model appears as
--- a distant body in the model frame, should not happen on original files, but may happen on mods such as 
--- HD models from WoD.
-
-Model.AnimCameraWorkaround = {
-["creature\\jaina\\jaina2.m2"] = {["nofacecamera"]="true", ["camerapos"]="2.2,0.3,0.1" }, -- no face camera on this model from a custom patch wod models
-["creature\\thralldoomplate\\thrall.m2"] = {["nofacecamera"]="true", ["camerapos"]="4,0.0,-0.6" }, -- no face camera on this model from a custom patch wod models
-}
-
 Model.ani = {
-	reading = 63,
+	reading = 520,
 	asking  = 65,
 	yelling = 64,
 	talking = 60,
@@ -308,23 +212,17 @@ Model.file = {
 	AvailableQuest	= 'interface\\buttons\\talktome.m2',
 	ActiveQuest		= 'interface\\buttons\\talktomequestionmark.m2',
 	IncompleteQuest = 'interface\\buttons\\talktomequestion_grey.m2',
-	GossipGossip	= 'interface\\buttons\\talktome_chat.m2',
+    GossipGossip    = 'interface\\addons\\'.. _ ..'\\textures\\m2\\talktome_chat.m2',
+	BookReading     = 'interface\\addons\\'.. _ ..'\\textures\\m2\\cfx_paladin_precastspecial_precasthand.m2',
 }
 
-Model.LightValues = {
-	1, 	-- enabled
-	0, 	-- omni
-	-250,	-- dirX
-	0,		-- dirY
-	0,		-- dirZ
-	0.25,	-- dirIntensity
-	1,		-- ambR
-	1,		-- ambG
-	1,		-- ambB
-	75,		-- ambIntensity
-	1,		-- dirR
-	1,		-- dirG
-	1,		-- dirB
-}
+-- Model.LightValues = {
+	-- omnidirectional  = false;
+	-- point            = CreateVector3D(-250, 0, 0);
+	-- ambientIntensity = 75;
+	-- ambientColor     = CreateColor(1, 1, 1);
+	-- diffuseIntensity = 0.25;
+	-- diffuseColor     = CreateColor(1, 1, 1);
+-- }
 
 Model.premature = 0.5

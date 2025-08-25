@@ -4,9 +4,18 @@ local frame = _G[ _ .. 'Frame' ]
 -- Animations to play on show
 ----------------------------------
 local __inAnims = {
-	frame.TalkBox.MainFrame.InAnim,
-	frame.TalkBox.NameFrame.FadeIn,
---	frame.TalkBox.TextFrame.FadeIn,
+	frame.TalkBox.MainFrame.Overlay.Glow_TopBar.InAnim,
+	frame.TalkBox.MainFrame.Overlay.Glow_LeftBar.InAnim,
+	frame.TalkBox.MainFrame.Overlay.Glow_RightBar.InAnim,
+	
+	frame.TalkBox.MainFrame.Sheen.InAnim,
+	frame.TalkBox.MainFrame.TextSheen.InAnim,
+	frame.TalkBox.MainFrame.Model.InAnim,
+	frame.TalkBox.MainFrame.Model.PortraitBG.InAnim,
+	frame.TalkBox.MainFrame.Indicator.InAnim,
+	
+	frame.TalkBox.NameFrame.Name.FadeIn,
+	-- frame.TalkBox.TextFrame.FadeIn,
 	frame.TalkBox.PortraitFrame.FadeIn,
 }
 
@@ -33,9 +42,10 @@ local __staticAlphaIgnored = {
 	[SubZoneTextFrame] 	= true,
 	[ShoppingTooltip1] 	= true,
 	[ShoppingTooltip2] 	= true,
+	[frame]	            = true,
 }
 local __staticHideFrames = {
-	[MinimapCluster] = true, 
+	[MinimapCluster] = true,
 }
 
 if LevelUpDisplay then
@@ -46,32 +56,11 @@ end
 local FadeIn, FadeOut = L.UIFrameFadeIn, L.UIFrameFadeOut
 ----------------------------------
 
-----------------------------------
-
-local function SetIgnoreParentAlpha(frame, ignore)
-	if(ignore == true) then
-		frame.pData = { ["Parent"] = frame:GetParent(), ["Level"] = frame:GetFrameLevel(), ["Strata"] = frame:GetFrameStrata() }
-		frame:SetParent(nil);
-		frame:SetFrameLevel(frame.pData["Level"])
-		frame:SetFrameStrata(frame.pData["Strata"])
-	else
-		if(frame.pData) then
-			frame:SetParent(frame.pData["Parent"]);
-			frame:SetFrameLevel(frame.pData["Level"])
-			frame:SetFrameStrata(frame.pData["Strata"])
-			frame.pData = nil
-		end
-	end
-end
-
-----------------------------------
-
 -- For config to cache certain frames for fade ignore/force.
 function L.ToggleIgnoreFrame(frame, ignore)
 	if frame then
 		__cacheAlphaIgnored[frame] = ignore
-		--frame:SetIgnoreParentAlpha(ignore) no wotlk equivalent
-		SetIgnoreParentAlpha(frame, ignore)
+		frame:SetIgnoreParentAlpha(ignore)
 	end
 end
 
@@ -81,14 +70,12 @@ local function GetFramesToIgnore()
 	local frames = {}
 	-- Store ignore state so it can be reset on release.
 	for frame in pairs(__staticAlphaIgnored) do
-		--frames[frame] = frame:IsIgnoringParentAlpha()
-		frames[frame] = frame.oldp ~= nil
+		frames[frame] = frame:IsIgnoringParentAlpha()
 	end
 	-- Union with cache.
 	for frame, shouldIgnore in pairs(__cacheAlphaIgnored) do
 		if shouldIgnore then
-			--frames[frame] = frame:IsIgnoringParentAlpha()
-			frames[frame] = frame.oldp ~= nil
+			frames[frame] = frame:IsIgnoringParentAlpha()
 		end
 	end
 	return frames
@@ -97,20 +84,33 @@ end
 -- Restore the temporary changes on release.
 local function RestoreFadedFrames(self)
 	FadeIn(UIParent, 0.5, UIParent:GetAlpha(), 1)
-
+	
 	local framesToIgnore = self.ignoredFadeFrames
 	if framesToIgnore then
 		for frame, ignoreParentAlpha in pairs(framesToIgnore) do
-			--frame:SetIgnoreParentAlpha(ignoreParentAlpha)
-			SetIgnoreParentAlpha(frame, ignoreParentAlpha)
+			frame:SetIgnoreParentAlpha(ignoreParentAlpha)
 		end
 		for frame in pairs(__staticHideFrames) do
 			if not __cacheAlphaIgnored[frame] then
 				FadeIn(frame, 0.5, frame:GetAlpha(), 1)
-				frame:Show()
+				if not frame:IsProtected() then
+					frame:Show()
+				end
 			end
 		end
 		self.ignoredFadeFrames = nil
+	end
+end
+
+-- Restore original parent after FadeOut
+local function RestoreParentFadedFrames(self)
+	local framesToIgnore = GetFramesToIgnore()
+	for frame in pairs(framesToIgnore) do
+		if (frame:GetName() ~= self:GetName()) then
+			if (frame:GetParent() ~= UIParent) then
+				frame:SetParent(UIParent)
+			end
+		end
 	end
 end
 
@@ -118,8 +118,7 @@ end
 -- Exposed to logic layer
 ----------------------------------
 local function SafeOnFadeOut(frame)
-	--if not frame:IsProtected() then
-	if not InCombatLockdown() then
+	if not frame:IsProtected() then
 		frame:Hide()
 	end
 end
@@ -129,7 +128,7 @@ function frame:FadeIn(fadeTime, playAnimations, ignoreFrameFade)
 
 	self.fadeState = 'in'
 	FadeIn(self, fadeTime, self:GetAlpha(), 1)
-	--PlayInAnimations(self, playAnimations)
+	PlayInAnimations(self, playAnimations)
 
 	if not ignoreFrameFade and L('hideui') and not self.ignoredFadeFrames then
 		local framesToIgnore = GetFramesToIgnore()
@@ -149,33 +148,37 @@ function frame:FadeIn(fadeTime, playAnimations, ignoreFrameFade)
 
 		-- Set ignored frames to override the alpha change
 		for frame in pairs(framesToIgnore) do
-			--frame:SetIgnoreParentAlpha(true)
-			SetIgnoreParentAlpha(frame, true)
+			frame:SetIgnoreParentAlpha(true)
 		end
-
+		
+		self:SetFrameStrata(L('strata'))
 		self.ignoredFadeFrames = framesToIgnore
 	end
-end
-
-function frame:TryHide()
-	if(not InCombatLockdown()) then
-		self:Hide()
+	
+	-- Add the option to rotate the camera if ui is hidden.
+	-- This will lead to a more dynamic experience.
+	-- https://github.com/seblindfors/Immersion/pull/27
+	if L('hideui') then
+		if L('camerarotationenabled') then
+			MoveViewRightStart(0.02)
+		end
+	else
+		if (self:GetParent() ~= UIParent) then
+			self:SetParent(UIParent) -- restore now if config turn off
+		end
 	end
 end
 
 function frame:FadeOut(fadeTime, ignoreOnTheFly)
-	--I am not sure why, but when in combat this will bug.
-	--[==[
 	if ( self.fadeState ~= 'out' ) then
 		FadeOut(self, fadeTime or 1, self:GetAlpha(), 0, {
-			finishedFunc = self.TryHide;
+			finishedFunc = self.Hide;
 			finishedArg1 = self;
 		})
 		self.fadeState = 'out'
 	end
-	--]==]
-
 	RestoreFadedFrames(self)
+	RestoreParentFadedFrames(self)
 end
 
 ----------------------------------
@@ -186,26 +189,26 @@ end
 do 	local function GameTooltipAlphaHandler(self)
 		if L('hideui') then
 			if L('hidetooltip') then
-				--self:SetIgnoreParentAlpha(not self:IsOwned(UIParent))
-
-				SetIgnoreParentAlpha(self, not self:IsOwned(UIParent))
+				self:SetIgnoreParentAlpha(not self:IsOwned(UIParent))
 			else
-				--self:SetIgnoreParentAlpha(true)
-				
-				SetIgnoreParentAlpha(self, true)
+				self:SetIgnoreParentAlpha(true)
+			end
+			self:SetFrameStrata('TOOLTIP')
+			ShoppingTooltip1:SetFrameStrata('TOOLTIP')
+			ShoppingTooltip2:SetFrameStrata('TOOLTIP')
+		else
+			if (self:GetParent() ~= UIParent) then
+				self:SetParent(UIParent)
+				if (self:GetFrameStrata() ~= 'TOOLTIP') then
+					self:SetFrameStrata('TOOLTIP')
+					ShoppingTooltip1:SetFrameStrata('TOOLTIP')
+					ShoppingTooltip2:SetFrameStrata('TOOLTIP')
+				end
 			end
 		end
 	end
 
 	GameTooltip:HookScript('OnTooltipSetDefaultAnchor', GameTooltipAlphaHandler)
 	GameTooltip:HookScript('OnShow', GameTooltipAlphaHandler)
-
-	if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
-		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(self)
-			if self ~= GameTooltip then return end;
-			GameTooltipAlphaHandler(self)
-		end)
-	else
-		GameTooltip:HookScript('OnTooltipSetItem', GameTooltipAlphaHandler)
-	end
+	GameTooltip:HookScript('OnTooltipSetItem', GameTooltipAlphaHandler)
 end

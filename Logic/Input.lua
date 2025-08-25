@@ -1,4 +1,4 @@
-local API, _, L = ImmersionAPI, ...;
+local API, NPC, _, L = ImmersionAPI, ImmersionFrame, ...;
 
 L.Inputs = {
 	accept = function(self)
@@ -41,7 +41,7 @@ L.Inputs = {
 				button.Hilite:SetAlpha(1)
 				button:Click()
 				button:OnLeave()
-				PlaySound(SOUNDKIT.IG_QUEST_LIST_SELECT)
+				PlaySound(EnumConst.SOUNDKIT.IG_QUEST_LIST_SELECT)
 			end
 		end
 	end,
@@ -52,4 +52,27 @@ L.ModifierStates = {
 	CTRL 	= IsControlKeyDown;
 	ALT 	= IsAltKeyDown;
 	NOMOD 	= function() return false end;
+}
+
+L.States = {
+	'',
+	'CTRL-',
+	'SHIFT-',
+	'ALT-',
+	'CTRL-SHIFT-',
+	'ALT-SHIFT-',
+	'ALT-CTRL-',
+	'CTRL-ALT-SHIFT-'
+}
+
+L.Numbers = {
+	['1'] = L.States,
+	['2'] = L.States,
+	['3'] = L.States,
+	['4'] = L.States,
+	['5'] = L.States,
+	['6'] = L.States,
+	['7'] = L.States,
+	['8'] = L.States,
+	['9'] = L.States,
 }

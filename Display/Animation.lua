@@ -45,7 +45,7 @@ local function FadeOnUpdate(self, elapsed)
 			else
 				-- Complete the fade and call the finished function if there is one
 				FadeRemoveFrame(frame)
-				if fadeInfo.finishedFunc then
+				if fadeInfo.finishedFunc and not InCombatLockdown() then
 					fadeInfo.finishedFunc(fadeInfo.finishedArg1, fadeInfo.finishedArg2, fadeInfo.finishedArg3, fadeInfo.finishedArg4)
 					fadeInfo.finishedFunc = nil
 				end

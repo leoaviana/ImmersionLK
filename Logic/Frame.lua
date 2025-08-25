@@ -1,7 +1,6 @@
 local _, L = ...
 local Frame, TalkBox, API, GetTime = {}, {}, ImmersionAPI, GetTime
 
-
 ----------------------------------
 -- Event handler
 ----------------------------------
@@ -15,13 +14,16 @@ function Frame:OnEvent(event, ...)
 	self.lastEvent = event
 	self.timeStamp = GetTime()
 	self:UpdateItems()
-	self:UpdateBackground()
+--	self:UpdateBackground()
 	return event
 end
 
 function Frame:OnHide()
 	self:ClearImmersionFocus()
 	self.TalkBox.BackgroundFrame.OverlayKit:Hide()
+	if L('hideui') and L('camerarotationenabled') then 
+		MoveViewRightStop()
+	end
 end
 
 ----------------------------------
@@ -31,19 +33,24 @@ function Frame:AddQuestInfo(template)
 	local elements = self.TalkBox.Elements
 	local content = elements.Content
 	local height = elements:Display(template, 'Stone')
+	local numSpellRewards = API:GetNumRewardSpells()
 
 	-- hacky fix to stop a content frame that only contains a spacer from showing.
 	if height > 20 then
 		elements:Show()
 		content:Show()
 		elements:UpdateBoundaries()
+		if (not numSpellRewards or numSpellRewards < 1) then
+			elements:UpdateBoundaries() -- double call to fix a content frame bug width ...
+		end
 	else
 		elements:Hide()
 		content:Hide()
-	end 
+	end
+
 	-- Extra: 32 px padding 
 	self.TalkBox:SetExtraOffset((height + 32) * L('elementscale'))
-	self.TalkBox.NameFrame.FadeIn:Play()
+	self.TalkBox.NameFrame.Name.FadeIn:Play()
 end
 
 function Frame:IsGossipAvailable(ignoreAutoSelect)
@@ -65,7 +72,7 @@ function Frame:IsQuestAutoAccepted(questStartItemID)
 	-- and different from eachother depending on the source of the quest. 
 	-- Handling here is prone to cause bugs/weird behaviour, update with caution.
 
-	--local questID = ImmersionAPI:GetQuestID()
+	local questID = API:GetQuestID()
 	local isFromAdventureMap = API:QuestIsFromAdventureMap()
 	local isFromAreaTrigger = API:QuestGetAutoAccept() and API:QuestIsFromAreaTrigger()
 	local isFromItem = (questStartItemID ~= nil and questStartItemID ~= 0)
@@ -78,9 +85,9 @@ function Frame:IsQuestAutoAccepted(questStartItemID)
 	-- an item pickup by loot caused this quest to show up, don't intrude on the user.
 	if isFromItem then
 		-- add a new quest tracker popup and close the quest dialog
-		--if AddAutoQuestPopUp(questID, 'OFFER') then
-		--	PlayAutoAcceptQuestSound()
-		--end
+		if AddQuestWatch(questID, 'OFFER') then
+			PlayAutoAcceptQuestSound()
+		end
 		API:CloseQuest()
 		return true
 	end
@@ -89,9 +96,9 @@ function Frame:IsQuestAutoAccepted(questStartItemID)
 	-- let's not intrude on the user; just add a tracker popup.
 	if isFromAreaTrigger then
 		-- add a new quest tracker popup and close the quest dialog
-		--if AddAutoQuestPopUp(questID, 'OFFER') then
-		--	PlayAutoAcceptQuestSound()
-		--end
+		if AddAutoQuestPopUp(questID, 'OFFER') then
+			PlayAutoAcceptQuestSound()
+		end
 		API:CloseQuest()
 		return true
 	end
@@ -104,7 +111,7 @@ function Frame:SelectBestOption()
 		button.Hilite:SetAlpha(1)
 		button:Click()
 		button:OnLeave()
-		PlaySound(SOUNDKIT.IG_QUEST_LIST_SELECT)
+		PlaySound(EnumConst.SOUNDKIT.IG_QUEST_LIST_SELECT)
 	end
 end
 
@@ -122,6 +129,21 @@ function Frame:IsObstructingQuestEvent(forceEvent)
 	return ( event:match('^QUEST') and event ~= 'QUEST_ACCEPTED' )
 end
 
+function Frame:IsNotQuestDisplayed()
+	return ( self.IsAvailableQuestID ~= '' and
+	  self.IsAvailableQuestObjective ~= '' and
+	  not UnitExists('questnpc')
+	)
+end
+
+function Frame:IsNPCObjectOrItem(notInGossip, notInQuest)
+	if notInGossip or notInQuest then
+		local model = self.TalkBox.MainFrame.Model
+		local m2 = model.file[model:GetModel()]
+		return ( model.unit ~= 'ether' or type(m2) ~= 'string' )
+	end
+end
+
 function Frame:HandleGossipQuestOverlap(event)
 	-- Since Blizzard handles this transition by mutually exclusive gossip/quest frames,
 	-- and their visibility to determine whether to close gossip or quest interaction,
@@ -130,34 +152,33 @@ function Frame:HandleGossipQuestOverlap(event)
 		if ( event == 'GOSSIP_SHOW' ) then
 		--	API:CloseQuest()
 		elseif self:IsObstructingQuestEvent(event) then
-			API:CloseGossip(true)
+			API:CloseGossip()
 		end
 	end
 end
 
 function Frame:HandleGossipOpenEvent(kit)
-	if not self.gossipHandlers[kit] then
-		self:SetBackground(kit)
-		self:UpdateTalkingHead(API:GetUnitName('npc'), API:GetGossipText(), 'GossipGossip')
-		if self:IsGossipAvailable() then
-			self:PlayIntro('GOSSIP_SHOW')
-		end
+--	if not self.gossipHandlers[kit] then
+--		self:SetBackground(kit)
+	self:UpdateTalkingHead(API:GetUnitName('npc'), API:GetGossipText(), 'GossipGossip')
+	if not L('gossipmode') and self:IsGossipAvailable() then
+		self:PlayIntro('GOSSIP_SHOW')
+	else
+		self:PlayIntro('GOSSIP_SHOW')
 	end
+--	end
 end
 
 function Frame:SetBackground(kit)
 	local backgroundFrame = self.TalkBox.BackgroundFrame;
 	local overlay = backgroundFrame.OverlayKit;
-
+	
 	if kit and not L('disablebgtextures') then
-		local backgroundAtlas = GetFinalNameFromTextureKit('QuestBG-%s', kit)
-		local atlasInfo = C_Texture.GetAtlasInfo(backgroundAtlas)
+		local backgroundAtlas = API:GetFinalNameFromTextureKit('QuestBG-%s', kit)
+		local atlasInfo = API:GetAtlasInfo(backgroundAtlas)
 		if atlasInfo then
-			local minColor = CreateColor(1, 1, 1, 0)
-			local maxColor = CreateColor(1, 1, 1, 0.5)
-
 			overlay:Show()
-			L.SetGradient(overlay, 'HORIZONTAL', minColor, maxColor)
+			overlay:SetGradientAlpha('HORIZONTAL', 1, 1, 1, 0, 1, 1, 1, 0.5)
 
 			overlay:SetSize(atlasInfo.width, atlasInfo.height)
 			overlay:SetTexture(atlasInfo.file)
@@ -170,13 +191,11 @@ function Frame:SetBackground(kit)
 end
 
 function Frame:UpdateBackground()
-	--[==[
-	local theme = API:GetQuestDetailsTheme(ImmersionAPI:GetQuestID())
+	local theme = API:GetQuestDetailsTheme(API:GetQuestID())
 	local kit = theme and theme.background and theme.background:gsub('QuestBG%-', '')
 	if kit then
 		self:SetBackground(kit)
 	end
-	--]==]
 end
 
 function Frame:ResetElements(event)
@@ -184,7 +203,7 @@ function Frame:ResetElements(event)
 	
 	self.Inspector:Hide()
 	self.TalkBox.Elements:Reset()
-	self:SetBackground(nil)
+	-- self:SetBackground(nil)
 end
 
 function Frame:UpdateTalkingHead(title, text, npcType, explicitUnit, isToastPlayback)
@@ -200,7 +219,6 @@ function Frame:UpdateTalkingHead(title, text, npcType, explicitUnit, isToastPlay
 	end
 	local talkBox = self.TalkBox
 	talkBox:SetExtraOffset(0)
-	--talkBox.ReputationBar:Update() friendship has been added in MoP
 	talkBox.MainFrame.Indicator:SetTexture('Interface\\GossipFrame\\' .. npcType .. 'Icon')
 	talkBox.MainFrame.Model:SetUnit(unit)
 	talkBox.NameFrame.Name:SetText(title)
@@ -208,19 +226,29 @@ function Frame:UpdateTalkingHead(title, text, npcType, explicitUnit, isToastPlay
 	textFrame.Text:SetText(text)
 	-- Add contents to toast.
 	if not isToastPlayback then
-		--[==[]]
 		if L('onthefly') then
 			self:QueueToast(title, text, npcType, unit)
-		elseif L('supertracked') then
-			self:QueueQuestToast(title, text, npcType, unit)
 		end
-		--]==]
 	end
 	if L('showprogressbar') and not L('disableprogression') then
 		talkBox.ProgressionBar:Show()
 	end
+	self.isToastPlayback = isToastPlayback and L('onthefly')
 end
 
+function Frame:HandleGossipToastClosed()
+	if L('hideui') and L('camerarotationenabled') then 
+		if self.isToastPlayback then
+			if ( API:GetNumGossipAvailableQuests() > 0 ) then
+				if ( self.lastEvent ~= 'GOSSIP_SHOW' ) then
+					MoveViewRightStop()
+				end
+			else
+				MoveViewRightStop()
+			end
+		end
+	end
+end
 
 ----------------------------------
 -- Content handler (items)
@@ -286,6 +314,10 @@ function Frame:ShowItems()
 
 		self:SetItemTooltip(tooltip, item, inspector)
 
+		-- Readjust tooltip size to fit the icon
+		-- local width, height = tooltip:GetSize()
+		-- tooltip:SetSize(width + 30, height + 4)
+
 		-- Anchor the tooltip to the column
 		tooltip:SetPoint('TOP', column.lastItem or column, column.lastItem and 'BOTTOM' or 'TOP', 0, 0)
 		column.lastItem = tooltip
@@ -336,13 +368,7 @@ function Frame:UpdateItems()
 		end
 	end
 	self.hasItems = #items > 0
-
-	if self.hasItems then
-		--self:AddHint('CIRCLE', INSPECT)
-	else
-		--self:RemoveHint('CIRCLE')
-	end
-
+	
 	return items, #items
 end
 
@@ -371,28 +397,28 @@ function Frame:PlayIntro(event, freeFloating)
 	if IsOptionFrameOpen() then
 		self:ForceClose(true)
 	else
-		--self:EnableKeyboard(not freeFloating)
-		self:FadeIn(nil, shouldAnimate, freeFloating) 
+		self:FadeIn(nil, shouldAnimate, freeFloating)
 
 		local box = self.TalkBox
 		local x, y = L('boxoffsetX'), L('boxoffsetY')
 		box:ClearAllPoints()
 		box:SetOffset(box.offsetX or x, box.offsetY or y)
 
-		if not shouldAnimate and not L('disableglowani') then 
-			self.TalkBox.MainFrame.SheenOnly:Play()
+		if not shouldAnimate and not L('disableglowani') then
+			self.TalkBox.MainFrame.Sheen.FadeIn:Stop()
+			self.TalkBox.MainFrame.Sheen.FadeIn:Play()
+			self.TalkBox.MainFrame.TextSheen.FadeIn:Stop()
+			self.TalkBox.MainFrame.TextSheen.FadeIn:Play()
 		end
 	end
 end
 
 -- This will also hide the frames after the animation is done.
 function Frame:PlayOutro(optionFrameOpen)
-	if(not InCombatLockdown()) then 
-		self:EnableKeyboard(false)
-        self:Hide();
-	end
-	self:FadeOut(0.5) 
+	--self:ClearKeyboardInput()
+	self:FadeOut(0.5)
 	self:PlayToasts(optionFrameOpen)
+	self:HandleGossipToastClosed()
 end
 
 function Frame:ForceClose(optionFrameOpen)
@@ -405,7 +431,7 @@ end
 ----------------------------------
 -- Key input handler
 ----------------------------------
-local inputs, modifierStates = L.Inputs, L.ModifierStates;
+local inputs, modifierStates, numbers = L.Inputs, L.ModifierStates, L.Numbers;
 
 function Frame:IsInspectModifier(button)
 	return button and button:match(L('inspect')) and true

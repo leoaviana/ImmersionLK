@@ -39,7 +39,7 @@ local function SetTheme(theme)
 	for id, data in pairs(theme) do
 		local region = regions[id]
 		if region and region.IsObjectType and region:IsObjectType('texture') then
-			ImmersionAPI.SetAtlas(region, data)
+			region:SetAtlas(data)
 		elseif region then
 			SetFontColor(region, data)
 		end

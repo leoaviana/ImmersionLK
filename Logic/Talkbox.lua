@@ -17,10 +17,11 @@ function TalkBox:SetOffset(x, y)
 	self.offsetY = y
 
 	local isBottom = ( point:match('Bottom') )
+	local isVert = ( isBottom or point == 'Top' )
 
 	y = y + ( isBottom and self.extraY or 0 )
 
-	local comp = y
+	local comp = isVert and y or x
 
 	if ( not isBottom ) or ( anidivisor <= 1 ) or ( not self:IsVisible() ) then
 		self:SetPoint(point, UIParent, x, y)
@@ -34,8 +35,11 @@ function TalkBox:SetOffset(x, y)
 			self:SetPoint(point, UIParent, x, y)
 			self.isOffsetting = false
 			self:SetScript('OnUpdate', nil)
-		else
+		elseif isVert then
 			self:SetPoint(point, UIParent, x, offset + ( diff / anidivisor ))
+		else
+			-- self:SetPoint(point, UIParent, x, offset + ( diff / anidivisor ))
+			self:SetPoint(point, parent, offset + (diff / anidivisor), y)
 		end
 	end)
 end
@@ -50,32 +54,6 @@ function TalkBox:SetExtraOffset(newOffset)
 	self:SetOffset(currX, currY)
 end
 
-function TalkBox:UpdateNameplateAnchor()
-	if self.plateInHiding then
-		self.plateInHiding:SetAlpha(1)
-		self.plateInHiding = nil
-	end
-	if L('nameplatemode') then
-		local plate = API:GetNamePlateForUnit('npc')
-		if plate then
-			if self.isOffsetting then
-				self:SetScript('OnUpdate', nil)
-				self.isOffsetting = false
-			end
-			self:ClearAllPoints()
-			self:SetPoint('CENTER', plate, 'TOP', 0, self.extraY or 0)
-			if plate.UnitFrame then
-				self.plateInHiding = plate.UnitFrame
-				self.plateInHiding:SetAlpha(0)
-			end
-			return true
-		end
-	end
-end
-
-----------------------------------
--- Scripts
-----------------------------------
 function TalkBox:OnEnter()
 	-- Highlight the button when it can be clicked
 	if not L('disableboxhighlight') then
@@ -141,7 +119,7 @@ function TalkBox:OnLeftClick()
 		if text:GetNumRemaining() > 1 and text:IsSequence() then
 			text:ForceNext()
 		else
-			API:CloseItemText()
+			ImmersionAPI:CloseItemText()
 		end
 	-- Progress quest to completion
 	elseif self.lastEvent == 'QUEST_PROGRESS' then

@@ -56,7 +56,7 @@ L.compat = {
 		L.ToggleIgnoreFrame(KTF, not L('hidetracker'))
 		L.options.args.general.args.hide.args.hidetracker.set = function(_, val)
 			L.cfg.hidetracker = val 
-			L.ToggleIgnoreFrame(WatchFrame, not val)
+			L.ToggleIgnoreFrame(ObjectiveTrackerFrame, not val)
 			L.ToggleIgnoreFrame(KTF, not val)
 		end
 
